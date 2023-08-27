@@ -2429,6 +2429,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hc_utils"
+version = "0.3.0-beta-dev.5"
+dependencies = [
+ "hdk",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "hdi"
 version = "0.3.1"
 dependencies = [
@@ -2612,6 +2621,7 @@ dependencies = [
  "holochain_wasmer_host",
  "holochain_websocket",
  "holochain_zome_types",
+ "holofuel_types",
  "hostname",
  "human-panic",
  "indoc",
@@ -2639,6 +2649,7 @@ dependencies = [
  "rand-utf8",
  "regex",
  "reqwest",
+ "reserves",
  "rpassword 5.0.1",
  "rusqlite",
  "sd-notify",
@@ -2662,6 +2673,8 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "tracing-subscriber",
+ "transactor",
+ "transactor_integrity",
  "tx5-go-pion-turn",
  "tx5-signal-srv",
  "unwrap_to",
@@ -3270,6 +3283,17 @@ dependencies = [
  "subtle-encoding",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "holofuel_types"
+version = "0.4.0"
+dependencies = [
+ "hdi",
+ "lazy_static",
+ "regex",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -6001,6 +6025,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "reserves"
+version = "0.1.0"
+dependencies = [
+ "hc_utils",
+ "hdk",
+ "reserves_utils",
+ "serde",
+ "transactor_integrity",
+]
+
+[[package]]
+name = "reserves_utils"
+version = "0.1.0"
+dependencies = [
+ "hc_utils",
+ "hdk",
+ "serde",
+ "transactor_integrity",
+]
+
+[[package]]
 name = "rgb"
 version = "0.8.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7612,6 +7657,36 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "transactor"
+version = "0.5.0"
+dependencies = [
+ "chrono",
+ "hc_utils",
+ "hdk",
+ "holofuel_types",
+ "lazy_static",
+ "rand 0.8.5",
+ "reserves_utils",
+ "serde",
+ "thiserror",
+ "transactor_integrity",
+]
+
+[[package]]
+name = "transactor_integrity"
+version = "0.5.0"
+dependencies = [
+ "base64 0.21.2",
+ "ed25519-dalek",
+ "hdi",
+ "holochain_zome_types",
+ "holofuel_types",
+ "lazy_static",
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]
