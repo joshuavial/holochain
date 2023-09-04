@@ -185,160 +185,161 @@ enable_reserves: true",
     println!("price set {:?}", price_set);
 
     // init transactor zome
-    // let _: Ledger = reserve_conductor
-    //     .clone()
-    //     .easy_call_zome(
-    //         &reserve_agent_pub_key,
-    //         None,
-    //         reserve_cell.to_owned(),
-    //         ZOME_NAME_TRANSACTOR,
-    //         "get_ledger",
-    //         (),
-    //     )
-    //     .await
-    //     .unwrap();
+    let _: Ledger = reserve_conductor
+        .clone()
+        .easy_call_zome(
+            &reserve_agent_pub_key,
+            None,
+            reserve_cell.to_owned(),
+            ZOME_NAME_TRANSACTOR,
+            "get_ledger",
+            (),
+        )
+        .await
+        .unwrap();
 
-    // // set up agent accounts
-    // let agents_conductor = SweetConductor::from_standard_config().await;
-    // const AGENTS_PER_CONDUCTOR: usize = 1;
-    // let agent_keys = SweetAgents::get(agents_conductor.keystore(), AGENTS_PER_CONDUCTOR).await;
-    // let mut agent_membrane_proofs = vec![];
-    // for agent_key in agent_keys.iter() {
-    //     let membrane_proof = generate_membrane_proof(
-    //         &membrane_proof_conductor,
-    //         &membrane_proof_generator,
-    //         agent_key,
-    //         None,
-    //     )
-    //     .await;
-    //     agent_membrane_proofs.push(membrane_proof);
-    // }
+    // set up agent accounts
+    let agents_conductor = SweetConductor::from_standard_config().await;
+    const AGENTS_PER_CONDUCTOR: usize = 1;
+    let agent_keys = SweetAgents::get(agents_conductor.keystore(), AGENTS_PER_CONDUCTOR).await;
+    let mut agent_membrane_proofs = vec![];
+    for agent_key in agent_keys.iter() {
+        let membrane_proof = generate_membrane_proof(
+            &membrane_proof_conductor,
+            &membrane_proof_generator,
+            agent_key,
+            None,
+        )
+        .await;
+        agent_membrane_proofs.push(membrane_proof);
+    }
 
-    // let mut agent_apps = vec![];
-    // for (index, agent_key) in agent_keys.iter().enumerate() {
-    //     let membrane_proof = agent_membrane_proofs[index].clone();
-    //     let mut membrane_proofs = HashMap::new();
-    //     membrane_proofs.insert(ROLE_NAME.to_string(), membrane_proof);
-    //     let app_bundle = AppBundle::new(manifest.clone().into(), vec![], PathBuf::from("."))
-    //         .await
-    //         .unwrap();
-    //     let app_id = format!("holofuel-{}", agent_key);
-    //     let stopped_app = agents_conductor
-    //         .clone()
-    //         .install_app_bundle(InstallAppPayload {
-    //             source: AppBundleSource::Bundle(app_bundle),
-    //             agent_key: agent_key.to_owned(),
-    //             membrane_proofs,
-    //             installed_app_id: Some(app_id),
-    //             network_seed: None,
-    //         })
-    //         .await
-    //         .unwrap();
-    //     let agent_app = agents_conductor
-    //         .clone()
-    //         .enable_app(stopped_app.id().to_owned())
-    //         .await
-    //         .unwrap();
-    //     let _: Ledger = agents_conductor
-    //         .easy_call_zome(
-    //             agent_key,
-    //             None,
-    //             agent_app.0.all_cells().next().unwrap().clone(),
-    //             ZOME_NAME_TRANSACTOR,
-    //             "get_ledger",
-    //             (),
-    //         )
-    //         .await
-    //         .unwrap();
-    //     agent_apps.push(agent_app);
-    // }
+    let mut agent_apps = vec![];
+    for (index, agent_key) in agent_keys.iter().enumerate() {
+        let membrane_proof = agent_membrane_proofs[index].clone();
+        let mut membrane_proofs = HashMap::new();
+        membrane_proofs.insert(ROLE_NAME.to_string(), membrane_proof);
+        let app_bundle = AppBundle::new(manifest.clone().into(), vec![], PathBuf::from("."))
+            .await
+            .unwrap();
+        let app_id = format!("holofuel-{}", agent_key);
+        let stopped_app = agents_conductor
+            .clone()
+            .install_app_bundle(InstallAppPayload {
+                source: AppBundleSource::Bundle(app_bundle),
+                agent_key: agent_key.to_owned(),
+                membrane_proofs,
+                installed_app_id: Some(app_id),
+                network_seed: None,
+            })
+            .await
+            .unwrap();
+        let agent_app = agents_conductor
+            .clone()
+            .enable_app(stopped_app.id().to_owned())
+            .await
+            .unwrap();
+        println!("hello here {:?}", agent_app);
+        let _: Ledger = agents_conductor
+            .easy_call_zome(
+                agent_key,
+                None,
+                agent_app.0.all_cells().next().unwrap().clone(),
+                ZOME_NAME_TRANSACTOR,
+                "get_ledger",
+                (),
+            )
+            .await
+            .unwrap();
+        agent_apps.push(agent_app);
+    }
 
     // // familiarize all agents
     // // SweetConductor::exchange_peer_info([&reserve_conductor, &agents_conductor]).await;
 
-    // // let the deposits begin
-    // const INITIAL_BALANCE: i128 = 100;
-    // let amount = INITIAL_BALANCE.to_string();
-    // let ext_amt_transferred = INITIAL_BALANCE * LATEST_UNIT_PRICE;
-    // let reserve_proof = ReserveProof {
-    //     ext_amt_transferred: Fuel::from_str(&ext_amt_transferred.to_string()).unwrap(),
-    //     nonce: "nonce-string".to_string(),
-    //     reserve_sales_price: Fuel::from_str(&LATEST_UNIT_PRICE.to_string()).unwrap(),
-    //     ext_tx_id: None,
-    // };
-    // let data_to_sign = SerializedBytes::try_from(reserve_proof.clone())
-    //     .unwrap()
-    //     .bytes()
-    //     .to_owned();
-    // let signature = reserve_conductor
-    //     .keystore()
-    //     .sign(
-    //         reserve_sign_key.clone(),
-    //         data_to_sign.into_boxed_slice().into(),
-    //     )
-    //     .await
-    //     .unwrap();
-    // for (index, agent_key) in agent_keys.iter().enumerate() {
-    //     let start = Instant::now();
-    //     let deposit_input = DepositInput {
-    //         receiver: AgentPubKeyB64::from(agent_key.clone()),
-    //         amount: amount.clone(),
-    //         reserve_payload: ReservePayload {
-    //             details: reserve_proof.clone(),
-    //             signature: signature.clone(),
-    //         },
-    //         expiration_date: Some(Timestamp::max()),
-    //         url: None,
-    //         note: None,
-    //     };
-    //     println!("depositing to agent {} with key {:?}", index, agent_key);
-    //     let agent_cell = agent_apps[index].0.all_cells().next().unwrap();
-    //     let tx: Transaction = reserve_conductor
-    //         .clone()
-    //         .easy_call_zome(
-    //             &reserve_agent_pub_key,
-    //             None,
-    //             reserve_cell.to_owned(),
-    //             ZOME_NAME_TRANSACTOR,
-    //             "deposit",
-    //             deposit_input,
-    //         )
-    //         .await
-    //         .unwrap();
-    //     println!("tx {:?}", tx);
+    // let the deposits begin
+    const INITIAL_BALANCE: i128 = 100;
+    let amount = INITIAL_BALANCE.to_string();
+    let ext_amt_transferred = INITIAL_BALANCE * LATEST_UNIT_PRICE;
+    let reserve_proof = ReserveProof {
+        ext_amt_transferred: Fuel::from_str(&ext_amt_transferred.to_string()).unwrap(),
+        nonce: "nonce-string".to_string(),
+        reserve_sales_price: Fuel::from_str(&LATEST_UNIT_PRICE.to_string()).unwrap(),
+        ext_tx_id: None,
+    };
+    let data_to_sign = SerializedBytes::try_from(reserve_proof.clone())
+        .unwrap()
+        .bytes()
+        .to_owned();
+    let signature = reserve_conductor
+        .keystore()
+        .sign(
+            reserve_sign_key.clone(),
+            data_to_sign.into_boxed_slice().into(),
+        )
+        .await
+        .unwrap();
+    for (index, agent_key) in agent_keys.iter().enumerate() {
+        let start = Instant::now();
+        let deposit_input = DepositInput {
+            receiver: AgentPubKeyB64::from(agent_key.clone()),
+            amount: amount.clone(),
+            reserve_payload: ReservePayload {
+                details: reserve_proof.clone(),
+                signature: signature.clone(),
+            },
+            expiration_date: Some(Timestamp::max()),
+            url: None,
+            note: None,
+        };
+        println!("depositing to agent {} with key {:?}", index, agent_key);
+        let agent_cell = agent_apps[index].0.all_cells().next().unwrap();
+        let tx: Transaction = reserve_conductor
+            .clone()
+            .easy_call_zome(
+                &reserve_agent_pub_key,
+                None,
+                reserve_cell.to_owned(),
+                ZOME_NAME_TRANSACTOR,
+                "deposit",
+                deposit_input,
+            )
+            .await
+            .unwrap();
+        println!("tx {:?}", tx);
 
-    //     let accept_tx_payload = AcceptTx {
-    //         address: tx.id.clone(),
-    //         expiration_date: Some(Timestamp::max()),
-    //     };
-    //     let accepted_tx_hash: EntryHashB64 = agents_conductor
-    //         .easy_call_zome(
-    //             agent_key,
-    //             None,
-    //             agent_cell.clone(),
-    //             ZOME_NAME_TRANSACTOR,
-    //             "accept_transaction",
-    //             accept_tx_payload,
-    //         )
-    //         .await
-    //         .unwrap();
-    //     println!("accept tx hash {:?}", accepted_tx_hash);
+        let accept_tx_payload = AcceptTx {
+            address: tx.id.clone(),
+            expiration_date: Some(Timestamp::max()),
+        };
+        let accepted_tx_hash: EntryHashB64 = agents_conductor
+            .easy_call_zome(
+                agent_key,
+                None,
+                agent_cell.clone(),
+                ZOME_NAME_TRANSACTOR,
+                "accept_transaction",
+                accept_tx_payload,
+            )
+            .await
+            .unwrap();
+        println!("accept tx hash {:?}", accepted_tx_hash);
 
-    //     let complete_tx_response: CounterSigningResponse = agents_conductor
-    //         .easy_call_zome(
-    //             agent_key,
-    //             None,
-    //             agent_cell.clone(),
-    //             ZOME_NAME_TRANSACTOR,
-    //             "complete_transactions",
-    //             accepted_tx_hash,
-    //         )
-    //         .await
-    //         .unwrap();
-    //     let elapsed = Instant::now() - start;
-    //     println!(
-    //         "complete tx response {:?}, took {:?}\n\n",
-    //         complete_tx_response, elapsed
-    //     );
-    // }
+        let complete_tx_response: CounterSigningResponse = agents_conductor
+            .easy_call_zome(
+                agent_key,
+                None,
+                agent_cell.clone(),
+                ZOME_NAME_TRANSACTOR,
+                "complete_transactions",
+                accepted_tx_hash,
+            )
+            .await
+            .unwrap();
+        let elapsed = Instant::now() - start;
+        println!(
+            "complete tx response {:?}, took {:?}\n\n",
+            complete_tx_response, elapsed
+        );
+    }
 }

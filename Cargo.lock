@@ -2468,8 +2468,8 @@ dependencies = [
  "arbitrary",
  "fixt",
  "hdk_derive 0.2.1",
- "holo_hash 0.2.1",
- "holochain_integrity_types 0.2.1",
+ "holo_hash",
+ "holochain_integrity_types",
  "holochain_wasmer_guest",
  "mockall",
  "paste",
@@ -2487,8 +2487,8 @@ version = "0.3.1"
 source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
 dependencies = [
  "hdk_derive 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holo_hash 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holochain_integrity_types 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "holo_hash",
+ "holochain_integrity_types",
  "holochain_wasmer_guest",
  "paste",
  "serde",
@@ -2505,9 +2505,9 @@ dependencies = [
  "getrandom 0.2.10",
  "hdi 0.3.1",
  "hdk_derive 0.2.1",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_wasmer_guest",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "mockall",
  "paste",
  "serde",
@@ -2526,9 +2526,9 @@ dependencies = [
  "getrandom 0.2.10",
  "hdi 0.3.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
  "hdk_derive 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holo_hash 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "holo_hash",
  "holochain_wasmer_guest",
- "holochain_zome_types 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "holochain_zome_types",
  "paste",
  "serde",
  "serde_bytes",
@@ -2543,7 +2543,7 @@ version = "0.2.1"
 dependencies = [
  "darling 0.14.4",
  "heck 0.4.1",
- "holochain_integrity_types 0.2.1",
+ "holochain_integrity_types",
  "paste",
  "proc-macro-error",
  "proc-macro2",
@@ -2558,7 +2558,7 @@ source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conduct
 dependencies = [
  "darling 0.14.4",
  "heck 0.4.1",
- "holochain_integrity_types 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "holochain_integrity_types",
  "paste",
  "proc-macro-error",
  "proc-macro2",
@@ -2639,7 +2639,7 @@ dependencies = [
  "futures",
  "holochain_serialized_bytes 0.0.51",
  "holochain_wasmer_common",
- "kitsune_p2p_dht_arc 0.2.1",
+ "kitsune_p2p_dht_arc",
  "must_future",
  "rand 0.8.5",
  "rusqlite",
@@ -2648,22 +2648,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tracing",
-]
-
-[[package]]
-name = "holo_hash"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "base64 0.13.1",
- "blake2b_simd 0.5.11",
- "derive_more",
- "holochain_serialized_bytes 0.0.51",
- "holochain_wasmer_common",
- "kitsune_p2p_dht_arc 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "serde",
- "serde_bytes",
- "thiserror",
 ]
 
 [[package]]
@@ -2694,7 +2678,7 @@ dependencies = [
  "getrandom 0.2.10",
  "ghost_actor 0.3.0-alpha.6",
  "hdk 0.2.1",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain",
  "holochain_cascade",
  "holochain_conductor_api",
@@ -2710,7 +2694,7 @@ dependencies = [
  "holochain_wasm_test_utils",
  "holochain_wasmer_host",
  "holochain_websocket",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "holofuel_types",
  "hostname",
  "human-panic",
@@ -2718,7 +2702,7 @@ dependencies = [
  "isotest",
  "itertools 0.10.5",
  "kitsune_p2p",
- "kitsune_p2p_block 0.2.1",
+ "kitsune_p2p_block",
  "kitsune_p2p_bootstrap",
  "kitsune_p2p_types",
  "lazy_static",
@@ -2788,14 +2772,14 @@ dependencies = [
  "ghost_actor 0.3.0-alpha.6",
  "hdk 0.2.1",
  "hdk_derive 0.2.1",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_p2p",
  "holochain_serialized_bytes 0.0.51",
  "holochain_sqlite",
  "holochain_state",
  "holochain_trace",
  "holochain_types",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "isotest",
  "kitsune_p2p",
  "matches",
@@ -2903,14 +2887,14 @@ version = "0.2.1"
 dependencies = [
  "derive_more",
  "directories",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_keystore",
  "holochain_p2p",
  "holochain_serialized_bytes 0.0.51",
  "holochain_state",
  "holochain_trace",
  "holochain_types",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "kitsune_p2p",
  "matches",
  "serde",
@@ -2944,11 +2928,11 @@ version = "0.2.1"
 dependencies = [
  "arbitrary",
  "derive_builder",
- "holo_hash 0.2.1",
- "holochain_integrity_types 0.2.1",
+ "holo_hash",
+ "holochain_integrity_types",
  "holochain_serialized_bytes 0.0.51",
- "kitsune_p2p_dht 0.2.1",
- "kitsune_p2p_timestamp 0.2.1",
+ "kitsune_p2p_dht",
+ "kitsune_p2p_timestamp",
  "paste",
  "serde",
  "serde_bytes",
@@ -2959,31 +2943,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "holochain_integrity_types"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "holo_hash 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holochain_serialized_bytes 0.0.51",
- "kitsune_p2p_dht 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "kitsune_p2p_timestamp 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "paste",
- "serde",
- "serde_bytes",
- "subtle",
- "tracing",
-]
-
-[[package]]
 name = "holochain_keystore"
 version = "0.2.1"
 dependencies = [
  "assert_cmd 2.0.12",
  "base64 0.13.1",
  "futures",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_serialized_bytes 0.0.51",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "kitsune_p2p_types",
  "lair_keystore",
  "must_future",
@@ -3017,13 +2985,13 @@ dependencies = [
  "fixt",
  "futures",
  "ghost_actor 0.3.0-alpha.6",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_keystore",
  "holochain_serialized_bytes 0.0.51",
  "holochain_trace",
  "holochain_types",
  "holochain_util",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "kitsune_p2p",
  "kitsune_p2p_types",
  "mockall",
@@ -3104,12 +3072,12 @@ dependencies = [
  "fixt",
  "futures",
  "getrandom 0.2.10",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_serialized_bytes 0.0.51",
  "holochain_sqlite",
  "holochain_trace",
  "holochain_util",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "kitsune_p2p",
  "lazy_static",
  "must_future",
@@ -3159,7 +3127,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.10",
  "hdk 0.2.1",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_keystore",
  "holochain_p2p",
  "holochain_serialized_bytes 0.0.51",
@@ -3168,7 +3136,7 @@ dependencies = [
  "holochain_types",
  "holochain_util",
  "holochain_wasm_test_utils",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "kitsune_p2p",
  "matches",
  "mockall",
@@ -3237,7 +3205,7 @@ dependencies = [
  "flate2",
  "futures",
  "getrandom 0.2.10",
- "holo_hash 0.2.1",
+ "holo_hash",
  "holochain_keystore",
  "holochain_serialized_bytes 0.0.51",
  "holochain_sqlite",
@@ -3245,10 +3213,10 @@ dependencies = [
  "holochain_types",
  "holochain_util",
  "holochain_wasmer_host",
- "holochain_zome_types 0.2.1",
+ "holochain_zome_types",
  "isotest",
  "itertools 0.10.5",
- "kitsune_p2p_dht 0.2.1",
+ "kitsune_p2p_dht",
  "lazy_static",
  "maplit",
  "matches",
@@ -3389,14 +3357,14 @@ dependencies = [
  "contrafact",
  "derive_builder",
  "fixt",
- "holo_hash 0.2.1",
- "holochain_integrity_types 0.2.1",
+ "holo_hash",
+ "holochain_integrity_types",
  "holochain_serialized_bytes 0.0.51",
  "holochain_wasmer_common",
- "kitsune_p2p_bin_data 0.2.1",
- "kitsune_p2p_block 0.2.1",
- "kitsune_p2p_dht 0.2.1",
- "kitsune_p2p_timestamp 0.2.1",
+ "kitsune_p2p_bin_data",
+ "kitsune_p2p_block",
+ "kitsune_p2p_dht",
+ "kitsune_p2p_timestamp",
  "matches",
  "nanoid 0.3.0",
  "num_enum",
@@ -3412,27 +3380,6 @@ dependencies = [
  "strum 0.18.0",
  "subtle",
  "subtle-encoding",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "holochain_zome_types"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "holo_hash 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holochain_integrity_types 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holochain_serialized_bytes 0.0.51",
- "holochain_wasmer_common",
- "kitsune_p2p_bin_data 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "kitsune_p2p_block 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "kitsune_p2p_dht 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "kitsune_p2p_timestamp 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "paste",
- "serde",
- "serde_bytes",
- "subtle",
  "thiserror",
  "tracing",
 ]
@@ -3876,12 +3823,12 @@ dependencies = [
  "holochain_trace",
  "itertools 0.10.5",
  "kitsune_p2p",
- "kitsune_p2p_block 0.2.1",
+ "kitsune_p2p_block",
  "kitsune_p2p_bootstrap",
  "kitsune_p2p_fetch",
  "kitsune_p2p_mdns",
  "kitsune_p2p_proxy",
- "kitsune_p2p_timestamp 0.2.1",
+ "kitsune_p2p_timestamp",
  "kitsune_p2p_transport_quic",
  "kitsune_p2p_types",
  "maplit",
@@ -3915,20 +3862,7 @@ dependencies = [
  "arbitrary",
  "base64 0.13.1",
  "derive_more",
- "kitsune_p2p_dht_arc 0.2.1",
- "serde",
- "serde_bytes",
- "shrinkwraprs",
-]
-
-[[package]]
-name = "kitsune_p2p_bin_data"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "base64 0.13.1",
- "derive_more",
- "kitsune_p2p_dht_arc 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "kitsune_p2p_dht_arc",
  "serde",
  "serde_bytes",
  "shrinkwraprs",
@@ -3938,19 +3872,8 @@ dependencies = [
 name = "kitsune_p2p_block"
 version = "0.2.1"
 dependencies = [
- "kitsune_p2p_bin_data 0.2.1",
- "kitsune_p2p_timestamp 0.2.1",
- "serde",
- "serde_bytes",
-]
-
-[[package]]
-name = "kitsune_p2p_block"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "kitsune_p2p_bin_data 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "kitsune_p2p_timestamp 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "kitsune_p2p_bin_data",
+ "kitsune_p2p_timestamp",
  "serde",
  "serde_bytes",
 ]
@@ -3989,9 +3912,9 @@ dependencies = [
  "holochain_serialized_bytes 0.0.51",
  "holochain_trace",
  "intervallum",
- "kitsune_p2p_dht 0.2.1",
- "kitsune_p2p_dht_arc 0.2.1",
- "kitsune_p2p_timestamp 0.2.1",
+ "kitsune_p2p_dht",
+ "kitsune_p2p_dht_arc",
+ "kitsune_p2p_timestamp",
  "maplit",
  "must_future",
  "num-traits",
@@ -4002,29 +3925,6 @@ dependencies = [
  "serde",
  "statrs",
  "test-case 1.2.3",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "kitsune_p2p_dht"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "colored 1.9.4",
- "derivative",
- "derive_more",
- "futures",
- "gcollections",
- "intervallum",
- "kitsune_p2p_dht_arc 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "kitsune_p2p_timestamp 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "must_future",
- "num-traits",
- "once_cell",
- "rand 0.8.5",
- "serde",
- "statrs",
  "thiserror",
  "tracing",
 ]
@@ -4048,18 +3948,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitsune_p2p_dht_arc"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "derive_more",
- "gcollections",
- "intervallum",
- "num-traits",
- "serde",
-]
-
-[[package]]
 name = "kitsune_p2p_fetch"
 version = "0.2.1"
 dependencies = [
@@ -4070,7 +3958,7 @@ dependencies = [
  "holochain_trace",
  "human-repr",
  "kitsune_p2p_fetch",
- "kitsune_p2p_timestamp 0.2.1",
+ "kitsune_p2p_timestamp",
  "kitsune_p2p_types",
  "linked-hash-map",
  "must_future",
@@ -4139,16 +4027,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitsune_p2p_timestamp"
-version = "0.2.1"
-source = "git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit#8ecadb779bf5f0cad3c0fdbc357d5fe0ed02e2cb"
-dependencies = [
- "chrono",
- "derive_more",
- "serde",
-]
-
-[[package]]
 name = "kitsune_p2p_transport_quic"
 version = "0.2.1"
 dependencies = [
@@ -4177,10 +4055,10 @@ dependencies = [
  "futures",
  "ghost_actor 0.3.0-alpha.6",
  "holochain_trace",
- "kitsune_p2p_bin_data 0.2.1",
- "kitsune_p2p_block 0.2.1",
- "kitsune_p2p_dht 0.2.1",
- "kitsune_p2p_dht_arc 0.2.1",
+ "kitsune_p2p_bin_data",
+ "kitsune_p2p_block",
+ "kitsune_p2p_dht",
+ "kitsune_p2p_dht_arc",
  "kitsune_p2p_types",
  "lair_keystore_api",
  "lru 0.8.1",
@@ -7916,7 +7794,7 @@ dependencies = [
  "base64 0.21.2",
  "ed25519-dalek",
  "hdi 0.3.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
- "holochain_zome_types 0.2.1 (git+https://github.com/holochain/holochain?branch=fix/hf-cross-conductor-deposit)",
+ "holochain_zome_types",
  "holofuel_types",
  "lazy_static",
  "serde",
