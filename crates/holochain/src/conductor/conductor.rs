@@ -1397,6 +1397,7 @@ mod app_impls {
             };
 
             for (dna, _) in ops.dnas_to_register {
+                self.spaces.get_or_create_space(dna.dna_hash())?;
                 self.clone().register_dna(dna).await?;
             }
 
