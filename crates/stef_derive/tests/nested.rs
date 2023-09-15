@@ -1,13 +1,13 @@
-enum Button {
+pub enum Button {
     Lo,
     Mid,
     Hi,
 }
 
-#[derive(PartialEq, Eq)]
-struct ButtonEffect;
+#[derive(Debug, PartialEq, Eq)]
+pub struct ButtonEffect;
 
-struct Slider(u8);
+pub struct Slider(u8);
 
 #[derive(stef_derive::State)]
 struct Panel {
