@@ -71,6 +71,7 @@ mod func;
 use func::*;
 
 #[proc_macro_derive(State)]
+#[proc_macro_error::proc_macro_error]
 pub fn derive_state(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut strukt: syn::ItemStruct =
         syn::parse(item).expect("State can only be derived for a struct");
