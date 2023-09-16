@@ -1,3 +1,5 @@
+use stef::Share;
+
 pub enum Button {
     Lo,
     Mid,
@@ -11,8 +13,8 @@ pub struct Slider(u8);
 
 #[derive(stef_derive::State)]
 struct Panel {
-    button: Button,
-    slider: Slider,
+    button: Share<Button>,
+    slider: Share<Slider>,
 }
 
 impl stef::State<'static> for Button {
