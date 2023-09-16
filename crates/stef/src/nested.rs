@@ -51,12 +51,13 @@ where
     }
 }
 
+#[cfg(test)]
 mod tests {
 
     use std::sync::Arc;
 
     use super::*;
-    use crate::{RecordActions, Share};
+    use crate::{ActionRecorder, MemoryActionRecorder, RecordActions, Share};
 
     //            G
     //           / \
@@ -66,7 +67,7 @@ mod tests {
     //       A  B  D   E
 
     // struct A(Nested<A, B>, Nested<A, C>);
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     struct C {
         a: Share<A>,
         b: Share<B>,
@@ -74,12 +75,15 @@ mod tests {
 
     impl C {}
 
+    type RootInner = RecordActions<C, MemoryActionRecorder<C>>;
+
     // TODO: Root struct and impl can be macro generated
-    struct Root(Share<C>);
+    #[derive(Clone, derive_more::Deref)]
+    struct Root(Share<RootInner>);
 
     impl State<'static> for Root {
-        type Action = <C as State<'static>>::Action;
-        type Effect = <C as State<'static>>::Effect;
+        type Action = <RootInner as State<'static>>::Action;
+        type Effect = <RootInner as State<'static>>::Effect;
 
         fn transition(&mut self, action: Self::Action) -> Self::Effect {
             self.0.transition(action)
@@ -88,11 +92,11 @@ mod tests {
 
     // TODO: derive
     impl Root {
-        pub fn new(c: C) -> Self {
-            Self(Share::new(c))
+        pub fn new(inner: RootInner) -> Self {
+            Self(Share::new(inner))
         }
 
-        pub fn a(&self) -> Nested<C, A> {
+        pub fn a(&self) -> Nested<RootInner, A> {
             Nested {
                 child: self.0.read(|c| c.a.clone()),
                 parent: self.0.clone(),
@@ -100,7 +104,7 @@ mod tests {
             }
         }
 
-        pub fn b(&self) -> Nested<C, B> {
+        pub fn b(&self) -> Nested<RootInner, B> {
             Nested {
                 child: self.0.read(|c| c.b.clone()),
                 parent: self.0.clone(),
@@ -110,14 +114,14 @@ mod tests {
     }
 
     // struct C(Nested<C, F>, Nested<C, G>);
-    #[derive(Debug)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     struct A(bool);
-    #[derive(Debug)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     struct B(u8);
     // struct F(f64);
     // struct G(String);
 
-    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     enum Cx {
         A(Ax),
         B(Bx),
@@ -125,7 +129,7 @@ mod tests {
 
     // TODO: derive
     impl Cx {
-        fn transformer_a() -> Transformer<C, A> {
+        fn transformer_a() -> Transformer<RootInner, A> {
             Transformer {
                 wrap_action: Arc::new(|a| Cx::A(a)),
                 unwrap_effect: Arc::new(|c| match c {
@@ -134,7 +138,7 @@ mod tests {
                 }),
             }
         }
-        fn transformer_b() -> Transformer<C, B> {
+        fn transformer_b() -> Transformer<RootInner, B> {
             Transformer {
                 wrap_action: Arc::new(|b| Cx::B(b)),
                 unwrap_effect: Arc::new(|c| match c {
@@ -196,9 +200,28 @@ mod tests {
             a: Share::new(a),
             b: Share::new(b),
         };
-        let c = RecordActions::new(None, Root::new(c));
+        let recorder = MemoryActionRecorder::new();
+        let root = Root::new(RecordActions::new(recorder.clone(), c));
 
-        c.a().transition(());
-        c.b().transition(3);
+        let mut a1 = root.a();
+        let mut a2 = root.a();
+        let mut b1 = root.b();
+        let mut b2 = root.b();
+
+        a1.transition(());
+        b1.transition(1);
+        a1.transition(());
+        a2.transition(());
+        b2.transition(2);
+
+        assert_eq!(
+            recorder.retrieve_actions().unwrap(),
+            vec![Cx::A(()), Cx::B(1), Cx::A(()), Cx::A(()), Cx::B(2),]
+        );
+
+        root.read(|s| {
+            assert_eq!(s.a.get(), A(true));
+            assert_eq!(s.b.get(), B(3));
+        });
     }
 }

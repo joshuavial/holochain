@@ -10,7 +10,7 @@ impl<S> Clone for Share<S> {
     }
 }
 
-impl<S: State<'static>> Share<S> {
+impl<S> Share<S> {
     /// Constructor
     pub fn new(s: S) -> Self {
         Self(std::sync::Arc::new(parking_lot::RwLock::new(s)))
@@ -32,7 +32,9 @@ impl<S: State<'static>> Share<S> {
     pub fn write<R>(&self, f: impl FnOnce(&mut S) -> R) -> R {
         f(&mut self.0.write())
     }
+}
 
+impl<S: State<'static>> Share<S> {
     /// Acquire write access to the shared state to perform a mutation.
     pub fn transition(&self, t: S::Action) -> S::Effect {
         self.transition_with(t, |_| ()).1

@@ -93,6 +93,11 @@ mod recording;
 #[cfg(feature = "recording")]
 pub use recording::*;
 
+#[cfg(feature = "recording")]
+mod recorder;
+#[cfg(feature = "recording")]
+pub use recorder::*;
+
 pub mod dependencies {
     #[cfg(feature = "recording")]
     pub use ::serde;
