@@ -64,7 +64,7 @@ impl<S: State<'static>> State<'static> for Share<S> {
     }
 }
 
-impl<T: 'static + State<'static> + std::fmt::Debug> std::fmt::Debug for Share<T> {
+impl<T: State<'static> + std::fmt::Debug> std::fmt::Debug for Share<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.read(|s| f.debug_tuple("Share").field(s).finish())
     }
