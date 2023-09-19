@@ -59,6 +59,8 @@ mod tests {
     use super::*;
     use crate::{Cassette, MemoryCassette, RecordActions, Share};
 
+    //           Root
+    //            |
     //            G
     //           / \
     //          /   \
@@ -66,14 +68,37 @@ mod tests {
     //        / \   / \
     //       A  B  D   E
 
-    // struct A(Nested<A, B>, Nested<A, C>);
+    // L1
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct A(bool);
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct B(u8);
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct D(f64);
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct E(String);
+
+    // L2
     #[derive(Clone, Debug)]
     struct C {
         a: Share<A>,
         b: Share<B>,
     }
 
-    impl C {}
+    #[derive(Clone, Debug)]
+    struct F {
+        d: Share<D>,
+        e: Share<E>,
+    }
+
+    #[derive(Clone, Debug)]
+    struct G {
+        c: Share<C>,
+        f: Share<F>,
+    }
 
     type RootInner = RecordActions<C, MemoryCassette<C>>;
 
@@ -90,7 +115,7 @@ mod tests {
         }
     }
 
-    // TODO: derive
+    // TODO: DERIVE
     impl Root {
         pub fn new(inner: RootInner) -> Self {
             Self(Share::new(inner))
@@ -113,21 +138,13 @@ mod tests {
         }
     }
 
-    // struct C(Nested<C, F>, Nested<C, G>);
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    struct A(bool);
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    struct B(u8);
-    // struct F(f64);
-    // struct G(String);
-
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     enum Cx {
         A(Ax),
         B(Bx),
     }
 
-    // TODO: derive
+    // TODO: DERIVE
     impl Cx {
         fn transformer_a() -> Transformer<RootInner, A> {
             Transformer {
