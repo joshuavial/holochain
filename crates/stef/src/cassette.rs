@@ -9,12 +9,12 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::*;
 
-pub trait ActionRecorder<S: State<'static>> {
+pub trait Cassette<S: State<'static>> {
     fn initialize(&self) -> anyhow::Result<()>;
 
     fn record_action(&self, action: &S::Action) -> anyhow::Result<()>;
 
-    // TODO: buffer, or just provide playback_actions
+    // TODO: use fallible_iterator for lazy retrieval
     fn retrieve_actions(&self) -> anyhow::Result<Vec<S::Action>>;
 
     fn playback_actions(&self, state: &mut S) -> anyhow::Result<Vec<S::Effect>> {
@@ -26,7 +26,7 @@ pub trait ActionRecorder<S: State<'static>> {
     }
 }
 
-impl<S: State<'static>> ActionRecorder<S> for () {
+impl<S: State<'static>> Cassette<S> for () {
     fn initialize(&self) -> anyhow::Result<()> {
         Ok(())
     }
@@ -40,12 +40,12 @@ impl<S: State<'static>> ActionRecorder<S> for () {
     }
 }
 
-pub struct FileActionRecorder<S> {
+pub struct FileCassette<S> {
     path: PathBuf,
     state: PhantomData<S>,
 }
 
-impl<S> From<PathBuf> for FileActionRecorder<S> {
+impl<S> From<PathBuf> for FileCassette<S> {
     fn from(path: PathBuf) -> Self {
         Self {
             path,
@@ -54,7 +54,7 @@ impl<S> From<PathBuf> for FileActionRecorder<S> {
     }
 }
 
-impl<S: State<'static>> ActionRecorder<S> for FileActionRecorder<S>
+impl<S: State<'static>> Cassette<S> for FileCassette<S>
 where
     S::Action: Serialize + DeserializeOwned,
 {
@@ -104,12 +104,12 @@ where
 }
 
 #[derive(Clone)]
-pub struct MemoryActionRecorder<S: State<'static>> {
+pub struct MemoryCassette<S: State<'static>> {
     actions: Share<Vec<S::Action>>,
     state: PhantomData<S>,
 }
 
-impl<S: State<'static>> MemoryActionRecorder<S> {
+impl<S: State<'static>> MemoryCassette<S> {
     pub fn new() -> Self {
         Self {
             actions: Default::default(),
@@ -118,7 +118,7 @@ impl<S: State<'static>> MemoryActionRecorder<S> {
     }
 }
 
-impl<S: State<'static>> ActionRecorder<S> for MemoryActionRecorder<S>
+impl<S: State<'static>> Cassette<S> for MemoryCassette<S>
 where
     S::Action: Serialize + DeserializeOwned + Clone,
 {

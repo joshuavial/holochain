@@ -94,9 +94,9 @@ mod recording;
 pub use recording::*;
 
 #[cfg(feature = "recording")]
-mod recorder;
+mod cassette;
 #[cfg(feature = "recording")]
-pub use recorder::*;
+pub use cassette::*;
 
 pub mod dependencies {
     #[cfg(feature = "recording")]

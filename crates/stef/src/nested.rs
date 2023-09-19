@@ -57,7 +57,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{ActionRecorder, MemoryActionRecorder, RecordActions, Share};
+    use crate::{Cassette, MemoryCassette, RecordActions, Share};
 
     //            G
     //           / \
@@ -75,7 +75,7 @@ mod tests {
 
     impl C {}
 
-    type RootInner = RecordActions<C, MemoryActionRecorder<C>>;
+    type RootInner = RecordActions<C, MemoryCassette<C>>;
 
     // TODO: Root struct and impl can be macro generated
     #[derive(Clone, derive_more::Deref)]
@@ -200,8 +200,8 @@ mod tests {
             a: Share::new(a),
             b: Share::new(b),
         };
-        let recorder = MemoryActionRecorder::new();
-        let root = Root::new(RecordActions::new(recorder.clone(), c));
+        let cassette = MemoryCassette::new();
+        let root = Root::new(RecordActions::new(cassette.clone(), c));
 
         let mut a1 = root.a();
         let mut a2 = root.a();
@@ -215,7 +215,7 @@ mod tests {
         b2.transition(2);
 
         assert_eq!(
-            recorder.retrieve_actions().unwrap(),
+            cassette.retrieve_actions().unwrap(),
             vec![Cx::A(()), Cx::B(1), Cx::A(()), Cx::A(()), Cx::B(2),]
         );
 
