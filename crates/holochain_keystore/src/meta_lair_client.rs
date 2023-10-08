@@ -47,6 +47,13 @@ impl MetaLairClient {
         };
 
         let client = ipc_keystore_connect_options(opts).await?;
+        
+        MetaLairClient::new_from_client(client)
+    }
+
+    pub(crate) async fn new_from_client(
+        client: LairClient
+    ) -> LairResult<Self> {
         let inner = Arc::new(Mutex::new(client));
 
         let (c_check_send, mut c_check_recv) = tokio::sync::mpsc::unbounded_channel();
@@ -395,5 +402,11 @@ impl MetaLairClient {
 
             Ok((info.digest, info.cert.to_vec().into(), pk))
         }
+    }
+}
+
+impl From<LairClient> for MetaLairClient {
+    fn from(value: LairClient) -> Self {
+        MetaLairClient::new_from_client(value)
     }
 }
