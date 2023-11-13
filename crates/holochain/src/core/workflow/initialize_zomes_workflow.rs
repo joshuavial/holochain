@@ -46,11 +46,15 @@ pub async fn initialize_zomes_workflow<Ribosome>(
 where
     Ribosome: RibosomeT + Clone + 'static,
 {
+    let cell_id = args.cell_id.clone();
+    tracing::info!("Initialising zome: {:?}", cell_id);
     let conductor_handle = args.conductor_handle.clone();
     let coordinators = args.ribosome.dna_def().get_all_coordinators();
     let result =
         initialize_zomes_workflow_inner(workspace.clone(), network.clone(), keystore.clone(), args)
             .await?;
+
+    tracing::info!("Finished initialising zome: {:?}", cell_id);        
 
     // --- END OF WORKFLOW, BEGIN FINISHER BOILERPLATE ---
 
