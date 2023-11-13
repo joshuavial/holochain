@@ -938,6 +938,8 @@ impl Cell {
         .await
         .map_err(|_| CellError::InitTimeout)?;
 
+        tracing::info!("Took out a lock on init check");
+
         // If not run it
         let keystore = self.conductor_api.keystore().clone();
         let id = self.id.clone();
@@ -962,6 +964,7 @@ impl Cell {
 
         // Check if initialization has run
         if workspace.source_chain().zomes_initialized().await? {
+            tracing::info!("Already initialised, skipping this init");
             return Ok(());
         }
         tracing::info!("running init");
