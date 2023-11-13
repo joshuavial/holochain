@@ -964,7 +964,7 @@ impl Cell {
         if workspace.source_chain().zomes_initialized().await? {
             return Ok(());
         }
-        trace!("running init");
+        tracing::info!("running init");
 
         let signal_tx = self.signal_broadcaster();
 
@@ -984,6 +984,7 @@ impl Cell {
             InitResult::Pass => {}
             r => return Err(CellError::InitFailed(r)),
         }
+        tracing::info!("init check is complete, guard should now drop");
         Ok(())
     }
 

@@ -54,8 +54,6 @@ where
         initialize_zomes_workflow_inner(workspace.clone(), network.clone(), keystore.clone(), args)
             .await?;
 
-    tracing::info!("Finished initialising zome: {:?}", cell_id);        
-
     // --- END OF WORKFLOW, BEGIN FINISHER BOILERPLATE ---
 
     // only commit if the result was successful
@@ -74,6 +72,9 @@ where
         )
         .await?;
     }
+
+    tracing::info!("Finished initialising zome: {:?}, with result {:?}", cell_id, result);
+
     Ok(result)
 }
 
