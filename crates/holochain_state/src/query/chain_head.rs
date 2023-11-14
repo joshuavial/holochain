@@ -22,6 +22,7 @@ impl Query for ChainHeadQuery {
     type State = Option<SignedActionHashed>;
     type Output = Option<HeadInfo>;
 
+    // TODO is this a valid use of MAX? It doesn't have to be from the same row as the blob and hash...
     fn query(&self) -> String {
         "
         SELECT blob, hash FROM (

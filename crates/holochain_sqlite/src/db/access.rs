@@ -163,7 +163,9 @@ impl<Kind: DbKindT> DbRead<Kind> {
     /// TODO: We should eventually swap this for an async solution.
     fn get_connection_from_pool(&self) -> DatabaseResult<PConn> {
         let now = Instant::now();
+        tracing::info!("About to check a connection out of the pool");
         let r = Ok(PConn::new(self.connection_pool.get()?));
+        tracing::info!("Got a connection from the pool");
         let el = now.elapsed();
         if el.as_millis() > 20 {
             // TODO Convert to a metric

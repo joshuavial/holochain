@@ -486,7 +486,10 @@ where
                 .read_async({
                     tracing::info!("Reading chain head for {}", author);
                     let author = author.clone();
-                    move |txn| chain_head_db_nonempty(&txn, author)
+                    move |txn| {
+                        tracing::info!("Starting chain head read for {}", author);
+                        chain_head_db_nonempty(&txn, author)
+                    }
                 })
                 .await?,
         );

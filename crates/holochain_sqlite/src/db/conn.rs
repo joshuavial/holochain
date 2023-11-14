@@ -34,6 +34,7 @@ impl<'e> PConn {
         F: 'e + FnOnce(Transaction) -> Result<R, E>,
     {
         let start = std::time::Instant::now();
+        tracing::info!("Starting txn");
         let txn = self.transaction().map_err(DatabaseError::from)?;
         if start.elapsed().as_millis() > 100 {
             let s = tracing::debug_span!("timing_1");
@@ -41,6 +42,7 @@ impl<'e> PConn {
                 || tracing::debug!(file = %file!(), line = %line!(), time = ?start.elapsed()),
             );
         }
+        tracing::info!("Dispatching on txn");
         // TODO It would be possible to prevent the transaction from calling commit here if we passed a reference instead of a move.
         f(txn)
     }
