@@ -115,7 +115,7 @@ mod tests {
 
         // Create 5 consecutive actions for the authoring agent,
         // as well as 5 other random actions, interspersed.
-        let shhs: Vec<_> = vec![
+        let mut shhs: Vec<_> = vec![
             fixt!(ActionBuilderCommon),
             fixt!(ActionBuilderCommon),
             fixt!(ActionBuilderCommon),
@@ -141,9 +141,10 @@ mod tests {
         })
         .collect();
 
-        println!("Have built {:?}", shhs);
-
+        // Other actions have a different author, so the 5th action should be the head for our author's chain
         let expected_head = shhs[8].clone();
+        // Shuffle so the head will sometimes be in scratch and sometimes be in the database and no always the last action by our author.
+        shhs.shuffle(&mut thread_rng());
 
         for shh in &shhs[..6] {
             let hash = shh.action_address();
