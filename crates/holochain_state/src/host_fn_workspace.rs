@@ -83,7 +83,7 @@ impl SourceChainWorkspace {
             author,
         )
         .await?;
-        Self::new_inner(authored, dht, cache, source_chain, dna_def, false).await
+        Self::new_inner(authored, dht, cache, source_chain, dna_def, false)
     }
 
     /// Create a source chain workspace where the root caller is the init callback.
@@ -128,7 +128,7 @@ impl SourceChainWorkspace {
             author,
         )
         .await?;
-        Self::new_inner(authored, dht, cache, source_chain, dna_def, false).await
+        Self::new_inner(authored, dht, cache, source_chain, dna_def, false)
     }
 
     fn new_inner(
