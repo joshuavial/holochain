@@ -119,9 +119,13 @@ impl<Kind: DbKindT> DbRead<Kind> {
             .checkout_connection(self.read_semaphore.clone())
             .await?;
 
-        tokio::task::spawn_blocking(move || conn.execute_in_read_txn(f))
-            .await
-            .map_err(DatabaseError::from)?
+        tracing::info!("About to spawn blocking");
+        // Once sync code starts in the spawn_blocking it cannot be cancelled BUT if we've run out of threads to execute blocking work on then
+        // this timeout should prevent the caller being blocked by this await that may not finish.
+        tokio::time::timeout(std::time::Duration::from_millis(ACQUIRE_TIMEOUT_MS.load(Ordering::Acquire)), tokio::task::spawn_blocking(move || {
+            tracing::info!("Spawn blocking has started");
+            conn.execute_in_read_txn(f)
+        })).await.map_err(DatabaseError::from)?.map_err(DatabaseError::from)?
     }
 
     /// Intended to be used for transactions that need to be kept open for a longer period of time than just running a
