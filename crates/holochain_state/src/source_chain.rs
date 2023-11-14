@@ -477,16 +477,20 @@ where
         keystore: MetaLairClient,
         author: AgentPubKey,
     ) -> SourceChainResult<Self> {
+        tracing::info!("Creating source chain for {}", author);
+
         let scratch = Scratch::new().into_sync();
         let author = Arc::new(author);
         let head_info = Some(
             vault
                 .read_async({
+                    tracing::info!("Reading chain head for {}", author);
                     let author = author.clone();
                     move |txn| chain_head_db_nonempty(&txn, author)
                 })
                 .await?,
         );
+        tracing::info!("Created source chain for {}", author);
         Ok(Self {
             scratch,
             vault,

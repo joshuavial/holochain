@@ -115,6 +115,7 @@ pub trait Query: Clone {
         S: Stores<Self>,
         S: Store,
     {
+        tracing::info!("Running query: {}", self.query());
         let mut stores_iter = stores.get_initial_data(self.clone())?;
         let iter = stores_iter.iter()?;
         let result = iter.fold(self.init_fold()?, |state, i| self.fold(state, i))?;
