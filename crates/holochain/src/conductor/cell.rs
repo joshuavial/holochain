@@ -950,8 +950,12 @@ impl Cell {
         let id = self.id.clone();
         let conductor_handle = self.conductor_handle.clone();
 
+        tracing::info!("Got handles");
+
         // get the dna
         let ribosome = self.get_ribosome()?;
+
+        tracing::info!("Got ribosome");
 
         let dna_def = ribosome.dna_def().clone();
 
@@ -966,6 +970,8 @@ impl Cell {
             Arc::new(dna_def.into_content()),
         )
         .await?;
+
+        tracing::info!("Got workspace");
 
         // Check if initialization has run
         if workspace.source_chain().zomes_initialized().await? {
