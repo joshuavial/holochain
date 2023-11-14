@@ -22,15 +22,13 @@ impl Query for ChainHeadQuery {
     type State = Option<SignedActionHashed>;
     type Output = Option<HeadInfo>;
 
-    // TODO is this a valid use of MAX? It doesn't have to be from the same row as the blob and hash...
     fn query(&self) -> String {
         "
-        SELECT blob, hash FROM (
-            SELECT Action.blob, Action.hash, MAX(action.seq)
-            FROM Action
-            JOIN DhtOp ON DhtOp.action_hash = Action.hash
-            WHERE Action.author = :author
-        ) WHERE hash IS NOT NULL
+        SELECT Action.blob, Action.hash
+        FROM Action
+        JOIN DhtOp ON DhtOp.action_hash = Action.hash
+        WHERE Action.author = :author AND Action.hash IS NOT NULL
+        ORDER BY Action.seq DESC LIMIT 1
         "
         .into()
     }
@@ -142,6 +140,8 @@ mod tests {
             )
         })
         .collect();
+
+        println!("Have built {:?}", shhs);
 
         let expected_head = shhs[8].clone();
 
