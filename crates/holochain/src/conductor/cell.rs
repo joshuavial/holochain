@@ -869,6 +869,8 @@ impl Cell {
         call: ZomeCall,
         workspace_lock: Option<SourceChainWorkspace>,
     ) -> CellResult<ZomeCallResult> {
+        tracing::info!("Entering call zome for cell: {:?}", call);
+
         // Only check if init has run if this call is not coming from
         // an already running init call.
         if workspace_lock
@@ -915,7 +917,8 @@ impl Cell {
             conductor_handle,
             is_root_zome_call,
         };
-        Ok(call_zome_workflow(
+        tracing::info!("Starting call zome workflow");
+        let r = call_zome_workflow(
             workspace_lock,
             self.holochain_p2p_cell.clone(),
             keystore,
@@ -924,7 +927,9 @@ impl Cell {
             self.queue_triggers.integrate_dht_ops.clone(),
         )
         .await
-        .map_err(Box::new)?)
+        .map_err(Box::new)?;
+        tracing::info!("Call zome workflow complete");
+        Ok(r)
     }
 
     /// Check if each Zome's init callback has been run, and if not, run it.
