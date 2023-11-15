@@ -149,7 +149,7 @@ where
     let call_zome_handle =
         CellConductorApi::new(conductor_handle.clone(), cell_id).into_call_zome_handle();
 
-    tracing::trace!("Before zome call");
+    tracing::debug!("Before zome call");
     let host_access = ZomeCallHostAccess::new(
         workspace.clone().into(),
         keystore,
@@ -159,7 +159,7 @@ where
     );
     let (ribosome, result) =
         call_zome_function_authorized(ribosome, host_access, invocation).await?;
-    tracing::trace!("After zome call");
+    tracing::debug!("After zome call");
 
     let validation_result =
         inline_validation(workspace.clone(), network, conductor_handle, ribosome).await;
@@ -208,7 +208,9 @@ where
 {
     match invocation.is_authorized(&host_access).await? {
         ZomeCallAuthorization::Authorized => {
+            tracing::info!("Authorized zome call");
             tokio::task::spawn_blocking(|| {
+                tracing::info!("Spawned blocking zome call thread");
                 let r = ribosome.call_zome_function(host_access, invocation);
                 Ok((ribosome, r))
             })

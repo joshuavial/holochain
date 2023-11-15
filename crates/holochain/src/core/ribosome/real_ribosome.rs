@@ -730,6 +730,7 @@ impl RealRibosome {
                 let instance = instance_with_store.instance.clone();
                 let mut store_lock = instance_with_store.store.lock();
                 let mut store_mut = store_lock.as_store_mut();
+                tracing::info!("Prepared call, executing");
                 result = holochain_wasmer_host::guest::call(
                     &mut store_mut,
                     instance,
@@ -739,6 +740,7 @@ impl RealRibosome {
                     // @todo - is this a problem for large payloads like entries?
                     invocation.to_owned().host_input()?,
                 );
+                tracing::info!("Finished WASM call, ready to process the result");
             }
 
             // a bit of typefu to avoid cloning the result.
@@ -961,11 +963,13 @@ impl RibosomeT for RealRibosome {
 
         match zome.zome_def() {
             ZomeDef::Wasm(wasm_zome) => {
+                tracing::info!("It's a WASM zome, proceeding");
                 let module_with_store = if let Some(path) = wasm_zome.preserialized_path.as_ref() {
                     self.precompiled_module(path)?
                 } else {
                     self.runtime_compiled_module(zome.zome_name())?
                 };
+                tracing::info!("Loaded the WASM module, starting call");
                 self.do_wasm_call_for_module::<I>(
                     call_context,
                     invocation,

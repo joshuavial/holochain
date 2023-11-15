@@ -39,8 +39,10 @@ impl<R: RibosomeT, I: Invocation + 'static> FallibleIterator for CallIterator<R,
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         Ok(match self.remaining_zomes.first() {
             Some(zome) => {
+                tracing::info!("Selected zome to call: {}", zome.name);
                 match self.remaining_components.next() {
                     Some(to_call) => {
+                        tracing::info!("Selected fn to call: {}", to_call);
                         match self.ribosome.maybe_call(
                             self.host_context.clone(),
                             &self.invocation,
