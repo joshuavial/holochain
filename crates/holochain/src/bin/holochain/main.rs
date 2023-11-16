@@ -73,6 +73,8 @@ async fn async_main() {
     // See https://docs.rs/human-panic/1.0.3/human_panic/
     human_panic::setup_panic!();
 
+    priontln!("Starting a custom Holochain version");
+
     let opt = Opt::from_args();
 
     if opt.build_info {
