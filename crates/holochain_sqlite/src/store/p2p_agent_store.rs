@@ -218,6 +218,7 @@ pub async fn p2p_put(
     db: &DbWrite<DbKindP2pAgents>,
     signed: &AgentInfoSigned,
 ) -> DatabaseResult<()> {
+    tracing::trace!("p2p_put: {:?}", signed.agent);
     let record = P2pRecord::from_signed(signed)?;
     db.write_async(move |txn| tx_p2p_put(txn, record)).await
 }
@@ -227,6 +228,7 @@ pub async fn p2p_put_all(
     db: &DbWrite<DbKindP2pAgents>,
     signed: impl Iterator<Item = &AgentInfoSigned>,
 ) -> DatabaseResult<()> {
+    tracing::trace!("p2p_put_all: {:?}", signed.size_hint());
     let mut records = Vec::new();
     let mut ns = Vec::new();
     for s in signed {
@@ -248,6 +250,7 @@ pub async fn p2p_put_all(
 
 /// Insert a p2p record from within a write transaction.
 pub fn p2p_put_single(txn: &mut Transaction<'_>, signed: &AgentInfoSigned) -> DatabaseResult<()> {
+    tracing::trace!("p2p_put_single: {:?}", signed.agent);
     cache_get(&*txn)?.put(signed.clone())?;
     let record = P2pRecord::from_signed(signed)?;
     tx_p2p_put(txn, record)
@@ -279,6 +282,7 @@ pub async fn p2p_prune(
     db: &DbWrite<DbKindP2pAgents>,
     local_agents: Vec<Arc<KitsuneAgent>>,
 ) -> DatabaseResult<()> {
+    tracing::trace!("p2p_prune: {}", local_agents.len());
     let mut agent_list = Vec::with_capacity(local_agents.len() * 36);
     for agent in local_agents.iter() {
         agent_list.extend_from_slice(agent.as_ref());
@@ -318,6 +322,8 @@ impl AsP2pStateTxExt for Transaction<'_> {
     fn p2p_remove_agent(&self, agent: &KitsuneAgent) -> DatabaseResult<bool> {
         cache_get(self)?.remove(agent)?;
 
+        tracing::trace!("p2p_remove_agent: {:?}", agent);
+
         let mut stmt = self
             .prepare(sql_p2p_agent_store::DELETE)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(e.into()))?;
@@ -349,6 +355,8 @@ impl AsP2pStateTxExt for Transaction<'_> {
     fn p2p_extrapolated_coverage(&self, dht_arc_set: DhtArcSet) -> DatabaseResult<Vec<f64>> {
         // TODO - rewrite this to use the "cache_get" memory cached info
         //        it will run a lot faster than the database query
+
+        tracing::trace!("p2p_extrapolated_coverage: {:?}", dht_arc_set);
 
         let mut stmt = self
             .prepare(sql_p2p_agent_store::EXTRAPOLATED_COVERAGE)

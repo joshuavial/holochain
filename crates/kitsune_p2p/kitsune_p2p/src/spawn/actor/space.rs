@@ -339,6 +339,7 @@ impl SpaceInternalHandler for Space {
         Ok(async move { Ok(()) }.boxed().into())
     }
 
+    // TODO Can this reflect? i.e. agents are responsible for delegating to each other and end up bounding messages back and forth?
     fn handle_incoming_delegate_broadcast(
         &mut self,
         space: Arc<KitsuneSpace>,
@@ -369,6 +370,7 @@ impl SpaceInternalHandler for Space {
                     }
                 }
             }
+            // TODO a network event here can cause a database write
             BroadcastData::AgentInfo(agent_info) => {
                 if self
                     .agent_arcs
@@ -399,6 +401,7 @@ impl SpaceInternalHandler for Space {
         // published to.
         let ro_inner = self.ro_inner.clone();
         let timeout = ro_inner.config.tuning_params.implicit_timeout();
+        // TODO This also queries for agents
         let fut =
             discover::get_cached_remotes_near_basis(ro_inner.clone(), basis.get_loc(), timeout);
 
@@ -477,6 +480,7 @@ impl SpaceInternalHandler for Space {
                 Ok(res) => res,
             };
 
+            // TODO to publish can trigger a delegate too. Follow this route.
             for (op_hash, have_data) in op_hash_list.into_iter().zip(have_data_list) {
                 if have_data {
                     if let Some((basis, mod_idx, mod_cnt)) = &maybe_delegate {
@@ -509,6 +513,7 @@ impl SpaceInternalHandler for Space {
                         context: Some(context),
                     });
 
+                    // TODO Here too, if we have prepared to fetch data we don't hold then we will also delegate it.
                     // Register a callback if maybe_delegate.is_some()
                     // to invoke the delegation on receipt of data.
                     if let Some((basis, mod_idx, mod_cnt)) = &maybe_delegate {
@@ -542,6 +547,7 @@ impl SpaceInternalHandler for Space {
         let timeout = ro_inner.config.tuning_params.implicit_timeout();
 
         Ok(async move {
+            // TODO Also searches peers on notify
             match discover::search_and_discover_peer_connect(
                 ro_inner.clone(),
                 to_agent.clone(),
@@ -568,6 +574,7 @@ impl SpaceInternalHandler for Space {
         .into())
     }
 
+    // TODO This is dealing with the callbacks registered above?
     fn handle_resolve_publish_pending_delegates(
         &mut self,
         _space: KSpace,
@@ -631,6 +638,7 @@ struct UpdateAgentInfoInput<'borrow> {
     dynamic_arcs: bool,
 }
 
+// TODO another hit to peer queries here
 async fn update_arc_length(
     evt_sender: &futures::channel::mpsc::Sender<KitsuneP2pEvent>,
     space: Arc<KitsuneSpace>,
@@ -651,6 +659,7 @@ async fn update_arc_length(
     Ok(())
 }
 
+// TODO hits arc length which queries agent data. It also updates agent info
 async fn update_single_agent_info(
     input: UpdateAgentInfoInput<'_>,
 ) -> KitsuneP2pResult<AgentInfoSigned> {
