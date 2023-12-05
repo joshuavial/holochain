@@ -4278,7 +4278,10 @@ dependencies = [
  "proptest-derive 0.3.0",
  "rand 0.8.5",
  "serde",
+ "serde_bytes",
+ "stef",
  "test-case 1.2.3",
+ "test-strategy",
  "tokio",
  "tracing",
 ]
