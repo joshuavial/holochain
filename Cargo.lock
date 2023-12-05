@@ -7357,6 +7357,7 @@ dependencies = [
  "stef_derive",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

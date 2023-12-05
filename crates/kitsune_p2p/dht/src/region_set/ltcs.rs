@@ -109,8 +109,8 @@ impl RegionCoordSetLtcs {
 /// The data to match the coordinates are specified in a 2D vector which must
 /// correspond to the generated coordinates.
 #[derive(Clone, serde::Serialize, serde::Deserialize, Derivative)]
-#[derivative(PartialEq, Eq)]
 #[cfg_attr(feature = "fuzzing", derive(proptest_derive::Arbitrary))]
+#[derivative(PartialEq, Eq)]
 pub struct RegionSetLtcs<D: RegionDataConstraints = RegionData> {
     /// The generator for the coordinates
     pub coords: RegionCoordSetLtcs,

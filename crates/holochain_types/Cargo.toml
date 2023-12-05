@@ -97,6 +97,7 @@ test_utils = [
 ]
 
 fuzzing = [
+  "contrafact",
   "arbitrary",
   "contrafact",
   "proptest",

@@ -11,9 +11,10 @@
 //! interval.
 
 use std::sync::Arc;
+use stef::{FileCassette, JsonEncoder};
 use tokio::time::{Duration, Instant};
 
-use kitsune_p2p_types::{tx2::tx2_utils::ShareOpen, KAgent, KSpace};
+use kitsune_p2p_types::{KAgent, KSpace};
 use linked_hash_map::{Entry, LinkedHashMap};
 
 use crate::{FetchContext, FetchKey, FetchPoolPush, RoughInt};
@@ -23,30 +24,6 @@ pub use pool_reader::*;
 
 /// Max number of queue items to check on each `next()` poll
 const NUM_ITEMS_PER_POLL: usize = 100;
-
-/// A FetchPool tracks a set of [`FetchKey`]s (op hashes) to be fetched,
-/// each of which can have multiple sources associated with it.
-///
-/// When adding the same key twice, the sources are merged by appending the newest
-/// source to the front of the list of sources, and the contexts are merged by the
-/// method defined in [`FetchPoolConfig`].
-///
-/// The queue items can be accessed only through its Iterator implementation.
-/// Each item contains a FetchKey and one Source agent from which to fetch it.
-/// Each time an item is obtained in this way, it is moved to the end of the list.
-/// It is important to use the iterator lazily, and only take what is needed.
-/// Accessing any item through iteration implies that a fetch was attempted.
-#[derive(Clone)]
-pub struct FetchPool {
-    state: ShareOpen<FetchPoolState>,
-}
-
-impl std::fmt::Debug for FetchPool {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.state
-            .share_ref(|state| f.debug_struct("FetchPool").field("state", state).finish())
-    }
-}
 
 /// Alias
 pub type FetchConfig = Arc<dyn FetchPoolConfig>;
@@ -89,7 +66,18 @@ impl FetchPoolConfig for FetchPoolConfigBitwiseOr {
     }
 }
 
-/// The actual inner state of the FetchPool, from which items can be obtained
+/// A FetchPoolState tracks a set of [`FetchKey`]s (op hashes or regions) to be fetched,
+/// each of which can have multiple sources associated with it.
+///
+/// When adding the same key twice, the sources are merged by appending the newest
+/// source to the front of the list of sources, and the contexts are merged by the
+/// method defined in [`FetchPoolConfig`].
+///
+/// The queue items can be accessed only through its Iterator implementation.
+/// Each item contains a FetchKey and one Source agent from which to fetch it.
+/// Each time an item is obtained in this way, it is moved to the end of the list.
+/// It is important to use the iterator lazily, and only take what is needed.
+/// Accessing any item through iteration implies that a fetch was attempted.
 #[derive(Debug)]
 pub struct FetchPoolState {
     config: FetchConfig,
@@ -108,67 +96,39 @@ impl Default for FetchPoolState {
 
 type NextItem = (FetchKey, KSpace, FetchSource, Option<FetchContext>);
 
+/// Cassette type for recording FetchPool actions
+pub type FetchPoolCassette = FileCassette<FetchPoolState, JsonEncoder>;
+
 impl FetchPool {
     /// Constructor
-    pub fn new(config: FetchConfig) -> Self {
-        Self {
-            state: ShareOpen::new(FetchPoolState::new(config)),
-        }
+    pub fn new(config: FetchConfig, cassette: Option<FetchPoolCassette>) -> Self {
+        Self(stef::Share::new(stef::RecordActions::new(
+            cassette,
+            FetchPoolState::new(config),
+        )))
     }
 
     /// Constructor, using only the "hardcoded" config (TODO: remove)
-    pub fn new_bitwise_or() -> Self {
+    pub fn new_bitwise_or(cassette: Option<FetchPoolCassette>) -> Self {
         let config = Arc::new(FetchPoolConfigBitwiseOr);
-        Self {
-            state: ShareOpen::new(FetchPoolState::new(config)),
-        }
-    }
-
-    /// Add an item to the queue.
-    /// If the FetchKey does not already exist, add it to the end of the queue.
-    /// If the FetchKey exists, add the new source and merge the context in, without
-    /// changing the position in the queue.
-    pub fn push(&self, args: FetchPoolPush) {
-        self.state.share_mut(|s| {
-            tracing::debug!(
-                "FetchPool (size = {}) item added: {:?}",
-                s.queue.len() + 1,
-                args
-            );
-            s.push(args);
-        });
-    }
-
-    /// When an item has been successfully fetched, we can remove it from the queue.
-    pub fn remove(&self, key: &FetchKey) -> Option<FetchPoolItem> {
-        self.state.share_mut(|s| {
-            let removed = s.remove(key.clone());
-            tracing::debug!(
-                "FetchPool (size = {}) item removed: key={:?} val={:?}",
-                s.queue.len(),
-                key,
-                removed
-            );
-            removed
-        })
+        Self::new(config, cassette)
     }
 
     /// Get a list of the next items that should be fetched.
     pub fn get_items_to_fetch(&self) -> Vec<NextItem> {
-        self.state
-            .share_mut(move |s| std::iter::from_fn(|| s.next_item()).collect())
+        self.write(move |s| std::iter::from_fn(|| s.next_item()).collect())
     }
 
     /// Get the current size of the fetch pool. This is the number of outstanding items
     /// and may be different to the size of response from `get_items_to_fetch` because it
     /// ignores retry delays.
     pub fn len(&self) -> usize {
-        self.state.share_ref(|s| s.len())
+        self.read(|s| s.len())
     }
 
     /// Check whether the fetch pool is empty.
     pub fn is_empty(&self) -> bool {
-        self.state.share_ref(|s| s.queue.is_empty())
+        self.read(|s| s.queue.is_empty())
     }
 }
 
@@ -181,7 +141,17 @@ pub enum FetchPoolEffect {
     RemovedItem(FetchPoolItem),
 }
 
-#[stef::state(fuzzing)]
+/// Shared access to FetchPoolState
+#[derive(Clone, Debug, derive_more::Deref, stef::State)]
+pub struct FetchPool(stef::Share<stef::RecordActions<FetchPoolState>>);
+
+impl From<FetchPoolState> for FetchPool {
+    fn from(pool: FetchPoolState) -> Self {
+        FetchPool(stef::Share::new(stef::RecordActions::new(Some(()), pool)))
+    }
+}
+
+#[stef::state(recording, fuzzing, wrapper(FetchPool))]
 impl stef::State<'static> for FetchPoolState {
     type Action = FetchPoolAction;
     type Effect = Option<FetchPoolEffect>;
@@ -200,6 +170,7 @@ impl stef::State<'static> for FetchPoolState {
             space,
             source,
             size,
+            cause: _,
         } = args;
 
         match self.queue.entry(key) {
@@ -415,7 +386,7 @@ impl Sources {
 }
 
 /// A source to fetch from: either a node, or an agent on a node
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(
     feature = "fuzzing",
     derive(arbitrary::Arbitrary, proptest_derive::Arbitrary)
@@ -428,6 +399,7 @@ pub enum FetchSource {
 #[cfg(test)]
 mod tests {
     use crate::test_utils::*;
+    use crate::FetchCause;
     use arbitrary::Arbitrary;
     use arbitrary::Unstructured;
     use pretty_assertions::assert_eq;
@@ -706,7 +678,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn queue_next() {
         let cfg = Config(1, 10);
-        let mut q = {
+        let pool: FetchPool = {
             let mut queue = [
                 (test_key_op(1), item(test_sources(0..=2), test_ctx(1))),
                 (test_key_op(2), item(test_sources(1..=3), test_ctx(1))),
@@ -727,19 +699,20 @@ mod tests {
                 queue,
                 config: Arc::new(cfg),
             }
+            .into()
         };
 
         // We can try fetching items one source at a time by waiting 1 sec in between
 
-        assert_eq!(q.len(), 3);
+        assert_eq!(pool.get_items_to_fetch().len(), 3);
 
         tokio::time::advance(Duration::from_secs(1)).await;
 
-        assert_eq!(q.len(), 3);
+        assert_eq!(pool.get_items_to_fetch().len(), 3);
 
         tokio::time::advance(Duration::from_secs(1)).await;
 
-        assert_eq!(q.len(), 2);
+        assert_eq!(pool.get_items_to_fetch().len(), 2);
 
         // Wait for manually modified source to be ready
         // (5 + 1 + 1 + 3 = 10)
@@ -747,24 +720,24 @@ mod tests {
 
         // The next (and only) item will be the one with the timestamp explicitly set
         assert_eq!(
-            std::iter::from_fn(|| q.next_item()).collect::<Vec<_>>(),
+            std::iter::from_fn(|| pool.write(|p| p.next_item())).collect::<Vec<_>>(),
             vec![(test_key_op(2), test_space(0), test_source(2), test_ctx(1))]
         );
-        assert_eq!(q.len(), 0);
+        assert_eq!(pool.get_items_to_fetch().len(), 0);
 
         // wait long enough for some items to be retryable
         // (10 - 5 - 1 = 4)
         tokio::time::advance(Duration::from_secs(4)).await;
 
-        assert_eq!(q.len(), 3);
+        assert_eq!(pool.get_items_to_fetch().len(), 3);
     }
 
     #[tokio::test(start_paused = true)]
-    async fn state_iter_sees_all_items() {
+    async fn state_get_items_to_fetch_sees_all_items() {
         let cfg = Config(1, 10);
         let num_items = 2 * NUM_ITEMS_PER_POLL; // Must be greater than NUM_ITEMS_PER_POLL
 
-        let q = {
+        let q: FetchPool = {
             let mut queue = vec![];
             for i in 0..(num_items) {
                 queue.push((
@@ -777,18 +750,21 @@ mod tests {
                 queue: queue.into_iter().collect(),
                 config: Arc::new(cfg),
             }
+            .into()
         };
 
         // None fetched initially, should see all items
         assert_eq!(num_items, q.len());
 
+        assert_eq!(q.get_items_to_fetch().len(), num_items);
+
         // Everything seen, no time elapsed
-        assert_eq!(0, q.len());
+        assert_eq!(q.get_items_to_fetch().len(), 0);
 
         // Move time forwards so everything will be ready to retry
         tokio::time::advance(Duration::from_secs(30)).await;
 
-        assert_eq!(num_items, q.len());
+        assert_eq!(q.get_items_to_fetch().len(), num_items);
     }
 
     #[tokio::test(start_paused = true)]
@@ -835,7 +811,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn remove_fetch_item() {
         let cfg = Config(1, 10);
-        let mut q = {
+        let mut pool: FetchPool = {
             let queue = [(test_key_op(1), item(test_sources([1]), test_ctx(1)))];
 
             let queue = queue.into_iter().collect();
@@ -843,15 +819,16 @@ mod tests {
                 queue,
                 config: Arc::new(cfg),
             }
+            .into()
         };
 
-        assert_eq!(1, q.len());
-        q.remove(test_key_op(1));
+        assert_eq!(1, pool.get_items_to_fetch().len());
+        pool.remove(test_key_op(1));
 
         // Move time forwards to be able to retry the item
         tokio::time::advance(Duration::from_secs(30)).await;
 
-        assert_eq!(0, q.len());
+        assert_eq!(0, pool.get_items_to_fetch().len());
     }
 
     #[tokio::test(start_paused = true)]
@@ -873,7 +850,7 @@ mod tests {
         let mut u = Unstructured::new(&noise);
 
         // Create a fetch pool to test
-        let fetch_pool = FetchPool::new(Arc::new(TestFetchConfig {}));
+        let mut fetch_pool = FetchPool::new(Arc::new(TestFetchConfig {}), None);
 
         // Some sources will be unavailable for blocks of time
         let unavailable_sources: HashSet<FetchSource> =
@@ -887,6 +864,7 @@ mod tests {
             size: None,   // Not important for this test
             author: None, // Unused field, ignore
             context: test_ctx(u32::arbitrary(&mut u).unwrap()),
+            cause: FetchCause::Publish,
         });
 
         let mut failed_count = 0;
@@ -900,6 +878,7 @@ mod tests {
                     size: None,   // Not important for this test
                     author: None, // Unused field, ignore
                     context: test_ctx(u32::arbitrary(&mut u).unwrap()),
+                    cause: FetchCause::Publish,
                 });
             }
 
@@ -908,25 +887,21 @@ mod tests {
             for item in items {
                 // If the source is available the fetch succeeds and we remove the item, otherwise leave it in the pool
                 if !unavailable_sources.contains(&item.2) {
-                    fetch_pool.remove(&item.0);
+                    fetch_pool.remove(item.0);
                 } else {
                     failed_count += 1;
                 }
             }
 
             // Advance time to allow items retry with a difference source if necessary
-            tokio::time::advance(fetch_pool.state.share_ref(|s| s.config.item_retry_delay())).await;
+            tokio::time::advance(fetch_pool.read(|s| s.config.item_retry_delay())).await;
         }
 
         // We created an item that will always fail, so should have at least one left
         assert!(
             !fetch_pool.get_items_to_fetch().is_empty(),
             "Pool should have had at least one item but got \n {}",
-            fetch_pool.state.share_ref(|s| format!(
-                "{}\n{}",
-                FetchPoolState::summary_heading(),
-                s.summary()
-            ))
+            fetch_pool.read(|s| format!("{}\n{}", FetchPoolState::summary_heading(), s.summary()))
         );
 
         // 10 accounted for by the item we've set up to never succeed, possible to get more but not guaranteed to not
@@ -946,19 +921,17 @@ mod tests {
         let context_1 = FetchContext(FLAG_1);
         let context_2 = FetchContext(FLAG_2);
 
-        let pool = FetchPool::new_bitwise_or();
-        let merged = pool
-            .state
-            .share_ref(|s| s.config.merge_fetch_contexts(*context_1, *context_2));
+        let pool = FetchPool::new_bitwise_or(None);
+        let merged = pool.read(|s| s.config.merge_fetch_contexts(*context_1, *context_2));
 
         assert_eq!(FLAG_1, merged & FLAG_1);
         assert_eq!(FLAG_2, merged & FLAG_2);
         assert_eq!(0, merged ^ (FLAG_1 | FLAG_2)); // Clear FLAG_1 and FLAG_2 to check no other bits are set
     }
 
-    #[cfg(feature = "fuzzing")]
     #[test_strategy::proptest]
-    fn fuzz_fetchpool_drainage(space: KSpace, actions: Vec<FetchPoolAction>) {
+    #[cfg(feature = "fuzzing")]
+    fn fuzz_fetchpool_drainage(spaces: [KSpace; 3], actions: Vec<FetchPoolAction>) {
         use stef::State;
 
         // println!("-------------------------------");
@@ -983,11 +956,11 @@ mod tests {
         let mut pool = FetchPoolState::new(Arc::new(Config));
 
         // apply the random actions
-        for mut a in actions {
+        for (i, mut a) in actions.into_iter().enumerate() {
             match a {
                 FetchPoolAction::Push(ref mut push) => {
-                    // set all actions to the same space
-                    push.space = space.clone();
+                    // set all actions to one of 3 spaces
+                    push.space = spaces[i % 3].clone();
                 }
                 _ => (),
             }
@@ -1004,10 +977,8 @@ mod tests {
                 std::thread::sleep(Duration::from_millis(1));
             }
         }
-        let reader = FetchPoolReader::from(FetchPool {
-            state: ShareOpen::new(pool),
-        });
-        let info = reader.info([space].into_iter().collect());
+        let reader = FetchPoolReader::from(FetchPool::from(pool));
+        let info = reader.info(spaces[0..3].iter().cloned().collect());
         assert_eq!(info.num_ops_to_fetch, 0);
         assert_eq!(info.op_bytes_to_fetch, 0);
     }

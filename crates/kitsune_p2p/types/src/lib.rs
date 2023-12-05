@@ -355,6 +355,7 @@ pub mod combinators;
 pub mod config;
 pub mod consistency;
 pub mod fetch_pool;
+pub mod gossip;
 pub mod metrics;
 pub mod task_agg;
 pub mod tls;

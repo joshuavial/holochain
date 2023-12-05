@@ -507,7 +507,7 @@ impl SpaceInternalHandler for Space {
                     continue;
                 } else {
                     // Add this hash to our fetch queue.
-                    ro_inner.fetch_pool.push(FetchPoolPush {
+                    ro_inner.fetch_pool.clone().push(FetchPoolPush {
                         key: FetchKey::Op(op_hash.data()),
                         space: space.clone(),
                         source: FetchSource::Agent(source.clone()),
@@ -515,6 +515,7 @@ impl SpaceInternalHandler for Space {
                         // TODO - get the author from somewhere
                         author: None,
                         context: Some(context),
+                        cause: FetchCause::Publish,
                     });
 
                     // Register a callback if maybe_delegate.is_some()

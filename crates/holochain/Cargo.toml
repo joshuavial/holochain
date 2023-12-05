@@ -191,11 +191,17 @@ test_utils = [
   "holochain_p2p/mock_network",
   "kitsune_p2p_bin_data/fixt",
   "kitsune_p2p_types/fixt",
-  "arbitrary",
+  "fuzzing",
   "matches",
   "holochain_test_wasm_common",
   "unwrap_to",
   "contrafact",
+]
+
+fuzzing = [
+  "holochain_types/fuzzing",
+  "holochain_zome_types/fuzzing",
+  "arbitrary",
 ]
 
 # Wasm ribosome tests take > 60 seconds - let's only run them in CI

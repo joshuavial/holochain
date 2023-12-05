@@ -375,6 +375,10 @@ pub struct KitsuneP2pConfig {
     /// so that logs from multiple instances in the same process can be disambiguated.
     #[serde(default)]
     pub tracing_scope: Option<String>,
+
+    /// Enables stef action recording at the specified path.
+    #[serde(default)]
+    pub stef_cassette_path: Option<std::path::PathBuf>,
 }
 
 impl Default for KitsuneP2pConfig {
@@ -385,6 +389,7 @@ impl Default for KitsuneP2pConfig {
             tuning_params: KitsuneP2pTuningParams::default(),
             network_type: NetworkType::QuicBootstrap,
             tracing_scope: None,
+            stef_cassette_path: None,
         }
     }
 }

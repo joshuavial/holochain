@@ -39,6 +39,8 @@ tokio = { version = "1.27", features = [ "full", "test-util" ] }
 rand = "0.8.5"
 
 [features]
+default = []
+
 fuzzing = [
     "arbitrary",
     "proptest",
@@ -49,8 +51,6 @@ fuzzing = [
 ]
 
 test_utils = ["human-repr", "kitsune_p2p_types/test_utils"]
-
-default = []
 
 sqlite-encrypted = [
     "kitsune_p2p_types/sqlite-encrypted",

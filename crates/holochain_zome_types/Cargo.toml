@@ -75,6 +75,7 @@ fixturators = ["fixt", "rand", "strum", "holo_hash/fixturators", "holochain_inte
 properties = ["serde_yaml"]
 
 fuzzing = [
+  "contrafact",
   "arbitrary",
   "contrafact",
   "proptest",

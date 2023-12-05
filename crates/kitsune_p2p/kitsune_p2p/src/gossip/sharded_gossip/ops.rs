@@ -1,4 +1,4 @@
-use kitsune_p2p_fetch::{FetchKey, FetchPoolPush, OpHashSized};
+use kitsune_p2p_fetch::{FetchCause, FetchKey, FetchPoolPush, OpHashSized};
 use kitsune_p2p_types::{combinators::second, dht::region::Region};
 
 use super::*;
@@ -310,9 +310,10 @@ impl ShardedGossipLocal {
                 context: None,
                 space: self.space.clone(),
                 source: source.clone(),
+                cause: FetchCause::Gossip(self.gossip_type.clone()),
                 size,
             };
-            self.fetch_pool.push(request);
+            self.fetch_pool.clone().push(request);
         }
         Ok(())
     }

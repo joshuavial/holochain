@@ -21,6 +21,7 @@ use kitsune_p2p_types::*;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
+use stef::FileCassette;
 
 /// The bootstrap service is much more thoroughly documented in the default service implementation.
 /// See <https://github.com/holochain/bootstrap>
@@ -165,8 +166,9 @@ impl KitsuneP2pActor {
         let fetch_response_queue =
             FetchResponseQueue::new(FetchResponseConfig::new(config.tuning_params.clone()));
 
-        // TODO - use a real config
-        let fetch_pool = FetchPool::new_bitwise_or();
+        let cassette = config.stef_cassette_path.clone().map(FileCassette::from);
+        // TODO - use a real config, i.e. use `FetchPool::new`
+        let fetch_pool = FetchPool::new_bitwise_or(cassette);
 
         // Start a loop to handle our fetch queue fetch items.
         FetchTask::spawn(

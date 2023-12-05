@@ -36,7 +36,7 @@ impl FetchTask {
                             .await
                         {
                             if res.len() == 1 && res.remove(0) {
-                                fetch_pool.remove(&key);
+                                fetch_pool.remove(key);
                                 continue;
                             }
                         }
@@ -87,7 +87,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn fetch_single_op() {
-        let (_task, fetch_pool, internal_sender_test, held_op_data, _) =
+        let (_task, mut fetch_pool, internal_sender_test, held_op_data, _) =
             setup(InternalStub::new()).await;
 
         fetch_pool.push(test_req_op(1, None, test_source(1)));
@@ -115,7 +115,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn fetch_task_shuts_down_if_internal_sender_closes() {
-        let (task, fetch_pool, internal_sender_test, _held_op_data, _) =
+        let (task, mut fetch_pool, internal_sender_test, _held_op_data, _) =
             setup(InternalStub::new()).await;
 
         // Do enough testing to prove the loop is up and running
@@ -153,7 +153,7 @@ mod tests {
     // TODO the API supports batch queries, why not query in batch? We are pushing extra requests through a bottleneck
     #[tokio::test(start_paused = true)]
     async fn fetch_checks_op_status_one_by_one_to_host() {
-        let (_task, fetch_pool, internal_sender_test, _held_op_data, check_op_data_call_count) =
+        let (_task, mut fetch_pool, internal_sender_test, _held_op_data, check_op_data_call_count) =
             setup(InternalStub::new()).await;
 
         fetch_pool.push(test_req_op(1, None, test_source(1)));
@@ -199,7 +199,7 @@ mod tests {
 
         tokio::spawn(builder.spawn(task));
 
-        let fetch_pool = FetchPool::new_bitwise_or();
+        let fetch_pool = FetchPool::new_bitwise_or(None);
 
         let op_data = Arc::new(Mutex::new(HashSet::<KOpHash>::new()));
         let check_op_data_call_count = Arc::new(AtomicUsize::new(0));
