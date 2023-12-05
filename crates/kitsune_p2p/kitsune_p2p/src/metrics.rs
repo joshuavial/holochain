@@ -12,6 +12,7 @@ use tokio::time::Instant;
 use crate::gossip::sharded_gossip::GossipType;
 use crate::gossip::sharded_gossip::NodeId;
 use crate::gossip::sharded_gossip::RegionDiffs;
+use crate::gossip::sharded_gossip::RoundState;
 use crate::types::*;
 use kitsune_p2p_timestamp::Timestamp;
 use kitsune_p2p_types::agent_info::AgentInfoSigned;
@@ -371,11 +372,7 @@ impl stef::State<'static> for Metrics {
     /// Call this to register a reachability event.
     /// Note, `record_success` and `record_error` below invoke this
     /// function internally, you don't need to call it again.
-    pub fn record_reachability_event<'a, T, I>(&mut self, success: bool, remote_agent_list: I)
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn record_reachability_event(&mut self, success: bool, remote_agent_list: AgentList) {
         for agent_info in remote_agent_list {
             let info = self
                 .agent_history
@@ -391,12 +388,7 @@ impl stef::State<'static> for Metrics {
 
     /// Running average for latency microseconds for any direct
     /// request/response calls to remote agent.
-    pub fn record_latency_micros<'a, T, I, V>(&mut self, micros: V, remote_agent_list: I)
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-        V: AsPrimitive<f32>,
-    {
+    pub fn record_latency_micros(&mut self, micros: f32, remote_agent_list: AgentList) {
         for agent_info in remote_agent_list {
             let history = self
                 .agent_history
@@ -407,11 +399,7 @@ impl stef::State<'static> for Metrics {
     }
 
     /// Record a gossip round has been initiated by us.
-    pub fn record_initiate<'a, T, I>(&mut self, remote_agent_list: I, gossip_type: GossipModuleType)
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn record_initiate(&mut self, remote_agent_list: AgentList, gossip_type: GossipModuleType) {
         for agent_info in remote_agent_list {
             let history = self
                 .agent_history
@@ -431,11 +419,7 @@ impl stef::State<'static> for Metrics {
     }
 
     /// Record a gossip round has been initiated by a peer.
-    pub fn record_accept<'a, T, I>(&mut self, remote_agent_list: I, gossip_type: GossipModuleType)
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn record_accept(&mut self, remote_agent_list: AgentList, gossip_type: GossipModuleType) {
         for agent_info in remote_agent_list {
             let history = self
                 .agent_history
@@ -455,11 +439,7 @@ impl stef::State<'static> for Metrics {
     }
 
     /// Record a gossip round has completed successfully.
-    pub fn record_success<'a, T, I>(&mut self, remote_agent_list: I, gossip_type: GossipModuleType)
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn record_success(&mut self, remote_agent_list: AgentList, gossip_type: GossipModuleType) {
         let mut should_dec_force_initiates = false;
 
         for agent_info in remote_agent_list {
@@ -495,11 +475,7 @@ impl stef::State<'static> for Metrics {
     }
 
     /// Record a gossip round has finished with an error.
-    pub fn record_error<'a, T, I>(&mut self, remote_agent_list: I, gossip_type: GossipModuleType)
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn record_error(&mut self, remote_agent_list: AgentList, gossip_type: GossipModuleType) {
         for agent_info in remote_agent_list {
             let history = self
                 .agent_history
@@ -526,9 +502,9 @@ impl stef::State<'static> for Metrics {
     /// Update node-level info about a current round, or create one if it doesn't exist
     pub fn update_current_round(
         &mut self,
-        peer: &NodeId,
+        peer: NodeId,
         gossip_type: GossipModuleType,
-        round_state: &RoundState,
+        round_state: RoundState,
     ) {
         let remote_agents = round_state
             .remote_agent_list
