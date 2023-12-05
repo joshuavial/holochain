@@ -517,7 +517,7 @@ impl ShardedGossipLocalState {
                 m.record_error(remote_agent_list.clone(), gossip_type.into());
             }
 
-            m.complete_current_round(state_key.clone(), error);
+            m.complete_current_round(state_key, error);
         });
         r
     }
@@ -545,7 +545,7 @@ impl ShardedGossipLocalState {
                     );
                     {
                         self.metrics.write(|m| {
-                            m.complete_current_round(cert, true);
+                            m.complete_current_round(&cert, true);
                             m.record_error(remote_agent_list.clone(), gossip_type.into());
                         });
                     }
@@ -554,7 +554,7 @@ impl ShardedGossipLocalState {
                 None if no_current_round_exist => {
                     {
                         self.metrics.write(|m| {
-                            m.complete_current_round(cert, true);
+                            m.complete_current_round(&cert, true);
                         });
                     }
                     self.initiate_tgt = None;
@@ -1069,7 +1069,7 @@ impl ShardedGossipLocal {
                     tracing::warn!("The node {:?} has timed out its gossip round", cert);
                     i.metrics.write(|m| {
                         m.record_error(r.remote_agent_list.clone(), self.gossip_type.into());
-                        m.complete_current_round(cert, true);
+                        m.complete_current_round(&cert, true);
                     });
                 }
                 Ok(())
