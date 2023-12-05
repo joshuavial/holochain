@@ -6,17 +6,15 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 
+use kitsune_p2p_types::KAgent;
 use tokio::time::Instant;
 
 use crate::gossip::sharded_gossip::GossipType;
 use crate::gossip::sharded_gossip::NodeId;
 use crate::gossip::sharded_gossip::RegionDiffs;
-use crate::gossip::sharded_gossip::RoundState;
 use crate::types::*;
 use kitsune_p2p_timestamp::Timestamp;
 use kitsune_p2p_types::agent_info::AgentInfoSigned;
-
-use num_traits::*;
 
 use kitsune_p2p_types::metrics::{MetricRecord, MetricRecordKind};
 use once_cell::sync::Lazy;
@@ -59,14 +57,14 @@ impl Default for RunAvg {
 
 impl RunAvg {
     /// Push a new data point onto the running average
-    pub fn push<V: AsPrimitive<f32>>(&mut self, v: V) {
+    pub fn push(&mut self, v: f32) {
         self.push_n(v, 1);
     }
 
     /// Push multiple entries (up to 255) of the same value onto the average
-    pub fn push_n<V: AsPrimitive<f32>>(&mut self, v: V, count: u8) {
+    pub fn push_n(&mut self, v: f32, count: u8) {
         self.1 = self.1.saturating_add(count);
-        self.0 = (self.0 * (self.1 - count) as f32 + (v.as_() * count as f32)) / self.1 as f32;
+        self.0 = (self.0 * (self.1 - count) as f32 + (v * count as f32)) / self.1 as f32;
     }
 }
 
@@ -155,7 +153,7 @@ pub struct PeerAgentHistory {
 #[derive(Debug, Clone, Default)]
 pub struct PeerNodeHistory {
     /// The most recent list of remote agents reported by this node
-    pub remote_agents: Vec<Arc<KitsuneAgent>>,
+    pub remote_agents: AgentList,
 
     /// Detailed info about the ongoing round with this node
     pub current_round: Option<CurrentRound>,
@@ -225,9 +223,9 @@ impl CurrentRound {
     }
 
     /// Update status based on an existing round
-    pub fn update(&mut self, round_state: &RoundState) {
+    pub fn update(&mut self, region_diffs: RegionDiffs) {
         self.last_touch = Instant::now();
-        self.region_diffs = round_state.region_diffs.clone();
+        self.region_diffs = region_diffs;
     }
 
     /// Convert to a CompletedRound
@@ -347,67 +345,17 @@ impl<'lt> AgentLike<'lt> {
     }
 }
 
-impl Metrics {
-    /// Dump historical metrics for recording to db.
-    pub fn dump_historical(&self) -> Vec<MetricRecord> {
-        let now = Timestamp::now();
+/// A set of agents
+pub type AgentList = HashSet<KAgent>;
 
-        let expires_at =
-            Timestamp::from_micros(now.as_micros() + HISTORICAL_RECORD_EXPIRE_DURATION_MICROS);
+/// Shared access to metrics
+#[derive(Clone, Debug, derive_more::From, derive_more::Deref, stef::State)]
+pub struct MetricsSync(stef::Share<Metrics>);
 
-        let mut out = Vec::new();
-
-        for (agent, node) in self.agent_history.iter() {
-            out.push(MetricRecord {
-                kind: MetricRecordKind::ReachabilityQuotient,
-                agent: Some(agent.clone()),
-                recorded_at_utc: now,
-                expires_at_utc: expires_at,
-                data: serde_json::json!(*node.reachability_quotient),
-            });
-
-            out.push(MetricRecord {
-                kind: MetricRecordKind::LatencyMicros,
-                agent: Some(agent.clone()),
-                recorded_at_utc: now,
-                expires_at_utc: expires_at,
-                data: serde_json::json!(*node.latency_micros),
-            });
-        }
-
-        out.push(MetricRecord {
-            kind: MetricRecordKind::AggExtrapCov,
-            agent: None,
-            recorded_at_utc: now,
-            expires_at_utc: expires_at,
-            data: serde_json::json!(*self.agg_extrap_cov),
-        });
-
-        out
-    }
-
-    /// Dump json encoded metrics
-    pub fn dump(&self) -> serde_json::Value {
-        let agents: serde_json::Value = self
-            .agent_history
-            .iter()
-            .map(|(a, i)| {
-                (
-                    a.to_string(),
-                    serde_json::json!({
-                        "reachability_quotient": *i.reachability_quotient,
-                        "latency_micros": *i.latency_micros,
-                    }),
-                )
-            })
-            .collect::<serde_json::map::Map<String, serde_json::Value>>()
-            .into();
-
-        serde_json::json!({
-            "aggExtrapCov": *self.agg_extrap_cov,
-            "agents": agents,
-        })
-    }
+#[stef::state(fuzzing, wrapper(MetricsSync))]
+impl stef::State<'static> for Metrics {
+    type Action = MetricsAction;
+    type Effect = ();
 
     /// Record an individual extrapolated coverage event
     /// (either from us or a remote)
@@ -614,42 +562,99 @@ impl Metrics {
     pub fn record_force_initiate(&mut self) {
         self.force_initiates = MAX_TRIGGERS;
     }
+}
+
+impl Default for MetricsSync {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl Metrics {
+    /// Dump historical metrics for recording to db.
+    pub fn dump_historical(&self) -> Vec<MetricRecord> {
+        let now = Timestamp::now();
+
+        let expires_at =
+            Timestamp::from_micros(now.as_micros() + HISTORICAL_RECORD_EXPIRE_DURATION_MICROS);
+
+        let mut out = Vec::new();
+
+        for (agent, node) in self.agent_history.iter() {
+            out.push(MetricRecord {
+                kind: MetricRecordKind::ReachabilityQuotient,
+                agent: Some(agent.clone()),
+                recorded_at_utc: now,
+                expires_at_utc: expires_at,
+                data: serde_json::json!(*node.reachability_quotient),
+            });
+
+            out.push(MetricRecord {
+                kind: MetricRecordKind::LatencyMicros,
+                agent: Some(agent.clone()),
+                recorded_at_utc: now,
+                expires_at_utc: expires_at,
+                data: serde_json::json!(*node.latency_micros),
+            });
+        }
+
+        out.push(MetricRecord {
+            kind: MetricRecordKind::AggExtrapCov,
+            agent: None,
+            recorded_at_utc: now,
+            expires_at_utc: expires_at,
+            data: serde_json::json!(*self.agg_extrap_cov),
+        });
+
+        out
+    }
+
+    /// Dump json encoded metrics
+    pub fn dump(&self) -> serde_json::Value {
+        let agents: serde_json::Value = self
+            .agent_history
+            .iter()
+            .map(|(a, i)| {
+                (
+                    a.to_string(),
+                    serde_json::json!({
+                        "reachability_quotient": *i.reachability_quotient,
+                        "latency_micros": *i.latency_micros,
+                    }),
+                )
+            })
+            .collect::<serde_json::map::Map<String, serde_json::Value>>()
+            .into();
+
+        serde_json::json!({
+            "aggExtrapCov": *self.agg_extrap_cov,
+            "agents": agents,
+        })
+    }
 
     /// Get the last successful round time.
-    pub fn last_success<'a, T, I>(&self, remote_agent_list: I) -> Option<&RoundMetric>
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn last_success(&self, remote_agent_list: &AgentList) -> Option<&RoundMetric> {
         remote_agent_list
-            .into_iter()
-            .filter_map(|agent_info| self.agent_history.get(agent_info.into().agent()))
+            .iter()
+            .filter_map(|agent| self.agent_history.get(agent))
             .filter_map(|info| info.successes.back())
             .min_by_key(|r| r.instant)
     }
 
     /// Is this node currently in an active round?
-    pub fn is_current_round<'a, T, I>(&self, remote_agent_list: I) -> bool
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn is_current_round(&self, remote_agent_list: &AgentList) -> bool {
         remote_agent_list
-            .into_iter()
-            .filter_map(|agent_info| self.agent_history.get(agent_info.into().agent()))
-            .any(|info| !info.current_rounds.is_empty())
+            .iter()
+            .filter_map(|agent| self.agent_history.get(agent))
+            .any(|info| info.current_round.is_empty())
     }
 
     /// What was the last outcome for this node's gossip round?
-    pub fn last_outcome<'a, T, I>(&self, remote_agent_list: I) -> Option<RoundOutcome>
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn last_outcome(&self, remote_agent_list: &AgentList) -> Option<RoundOutcome> {
         #[allow(clippy::map_flatten)]
         remote_agent_list
-            .into_iter()
-            .filter_map(|agent_info| self.agent_history.get(agent_info.into().agent()))
+            .iter()
+            .filter_map(|agent| self.agent_history.get(agent))
             .map(|info| {
                 [
                     info.errors.back().map(|x| RoundOutcome::Error(x.clone())),
@@ -670,14 +675,10 @@ impl Metrics {
 
     /// Return the average (mean) reachability quotient for the
     /// supplied remote agents.
-    pub fn reachability_quotient<'a, T, I>(&self, remote_agent_list: I) -> f32
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn reachability_quotient(&self, remote_agent_list: AgentList) -> f32 {
         let (sum, cnt) = remote_agent_list
-            .into_iter()
-            .filter_map(|agent_info| self.agent_history.get(agent_info.into().agent()))
+            .iter()
+            .filter_map(|agent| self.agent_history.get(agent))
             .map(|info| *info.reachability_quotient)
             .fold((0.0, 0.0), |acc, x| (acc.0 + x, acc.1 + 1.0));
         if cnt <= 0.0 {
@@ -689,14 +690,10 @@ impl Metrics {
 
     /// Return the average (mean) latency microseconds for the
     /// supplied remote agents.
-    pub fn latency_micros<'a, T, I>(&self, remote_agent_list: I) -> f32
-    where
-        T: Into<AgentLike<'a>>,
-        I: IntoIterator<Item = T>,
-    {
+    pub fn latency_micros(&self, remote_agent_list: AgentList) -> f32 {
         let (sum, cnt) = remote_agent_list
-            .into_iter()
-            .filter_map(|agent_info| self.agent_history.get(agent_info.into().agent()))
+            .iter()
+            .filter_map(|agent| self.agent_history.get(agent))
             .map(|info| *info.latency_micros)
             .fold((0.0, 0.0), |acc, x| (acc.0 + x, acc.1 + 1.0));
         if cnt <= 0.0 {
@@ -829,85 +826,48 @@ impl std::fmt::Display for Metrics {
     }
 }
 
-/// Synchronization primitive around the Metrics struct.
-#[derive(Clone)]
-pub struct MetricsSync(Arc<parking_lot::RwLock<Metrics>>);
-
-impl Default for MetricsSync {
-    fn default() -> Self {
-        Self(Arc::new(parking_lot::RwLock::new(Metrics::default())))
-    }
-}
-
-impl std::fmt::Debug for MetricsSync {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.read().fmt(f)
-    }
-}
-
-impl std::fmt::Display for MetricsSync {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.read().fmt(f)
-    }
-}
-
-impl MetricsSync {
-    /// Get a read lock for the metrics store.
-    pub fn read(&self) -> parking_lot::RwLockReadGuard<Metrics> {
-        match self.0.try_read_for(std::time::Duration::from_millis(100)) {
-            Some(g) => g,
-            // This won't block if a writer is waiting.
-            // NOTE: This is a bit of a hack to work around a lock somewhere that is errant-ly
-            // held over another call to lock. Really we should fix that error,
-            // potentially by using a closure pattern here to ensure the lock cannot
-            // be held beyond the access logic.
-            None => self.0.read_recursive(),
-        }
-    }
-
-    /// Get a write lock for the metrics store.
-    pub fn write(&self) -> parking_lot::RwLockWriteGuard<Metrics> {
-        match self.0.try_write_for(std::time::Duration::from_secs(100)) {
-            Some(g) => g,
-            None => {
-                eprintln!("Metrics lock likely deadlocked");
-                self.0.write()
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use stef::State;
+
     use super::*;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_run_avg() {
         let mut a1 = RunAvg::default();
-        a1.push(100);
-        a1.push(1);
-        a1.push(1);
-        a1.push(1);
+        a1.push(100.0);
+        a1.push(1.0);
+        a1.push(1.0);
+        a1.push(1.0);
         assert_eq!(25.75, *a1);
 
         let mut a2 = RunAvg::default();
-        a2.push_n(100, 1);
-        a2.push_n(1, 3);
+        a2.push_n(100.0, 1);
+        a2.push_n(1.0, 3);
         assert_eq!(25.75, *a2);
 
         let mut a3 = RunAvg::default();
-        a3.push_n(100, 255);
-        a3.push(1);
+        a3.push_n(100.0, 255);
+        a3.push(1.0);
         assert_eq!(99.61176, *a3);
 
         let mut a4 = RunAvg::default();
-        a4.push_n(100, 255);
-        a4.push_n(1, 128);
+        a4.push_n(100.0, 255);
+        a4.push_n(1.0, 128);
         assert_eq!(50.30588, *a4);
 
         let mut a5 = RunAvg::default();
-        a5.push_n(100, 255);
-        a5.push_n(1, 255);
+        a5.push_n(100.0, 255);
+        a5.push_n(1.0, 255);
         assert_eq!(1.0, *a5);
+    }
+
+    #[cfg(feature = "fuzzing")]
+    #[test_strategy::proptest]
+    fn fuzz_metrics(actions: Vec<MetricsAction>) {
+        let mut metrics = Metrics::default();
+        for a in actions {
+            metrics.transition(a);
+        }
     }
 }

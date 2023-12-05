@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## \[Unreleased\]
 
+- **BREAKING**: gossip protocol has breaking changes:
+  - Initiate and Accept messages send a list of agent hashes rather than full agent info
 - Gossip send failures and target expired events are now logged as warnings rather than errors, and have additional text for clarity. [\#2974](https://github.com/holochain/holochain/pull/2974)
 
 ## 0.3.0-beta-dev.22
@@ -30,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 0.3.0-beta-dev.17
 
-- Add additional configuration options to network\_tuning for setting the allowed ephemeral port range for tx5 connections: tx5\_min\_ephemeral\_udp\_port and tx5\_max\_ephemeral\_udp\_port
+- Add additional configuration options to network_tuning for setting the allowed ephemeral port range for tx5 connections: tx5_min_ephemeral_udp_port and tx5_max_ephemeral_udp_port
 
 ## 0.3.0-beta-dev.16
 

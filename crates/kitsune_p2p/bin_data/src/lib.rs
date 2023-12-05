@@ -248,6 +248,10 @@ impl std::fmt::Debug for KitsuneSignature {
     serde::Serialize,
     serde::Deserialize,
 )]
+#[cfg_attr(
+    feature = "fuzzing",
+    derive(arbitrary::Arbitrary, proptest_derive::Arbitrary)
+)]
 pub struct NodeCert(std::sync::Arc<[u8; 32]>);
 
 impl std::fmt::Debug for NodeCert {
