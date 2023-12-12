@@ -265,6 +265,7 @@ mod tests {
             properties: ().try_into().unwrap(),
             origin_time: Timestamp::HOLOCHAIN_EPOCH,
             quantum_time: STANDARD_QUANTUM_TIME,
+            dpki_hash: None,
         };
 
         let opt = DnaModifiersOpt {
@@ -272,6 +273,7 @@ mod tests {
             properties: Some(props.clone()),
             origin_time: Some(now),
             quantum_time: Some(core::time::Duration::from_secs(60)),
+            dpki_hash: None,
         };
 
         let expected = DnaModifiers {
@@ -279,6 +281,7 @@ mod tests {
             properties: props.clone(),
             origin_time: now,
             quantum_time: core::time::Duration::from_secs(60),
+            dpki_hash: None,
         };
 
         assert_eq!(mods.update(opt), expected);

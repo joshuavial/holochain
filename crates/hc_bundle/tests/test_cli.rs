@@ -192,6 +192,7 @@ async fn test_multi_integrity() {
             properties: ().try_into().unwrap(),
             origin_time,
             quantum_time: Duration::from_secs(5 * 60),
+            dpki_hash: None,
         },
         integrity_zomes: vec![
             (

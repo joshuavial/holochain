@@ -124,6 +124,7 @@ impl DnaBundle {
                         )?,
                         origin_time: manifest.integrity.origin_time.into(),
                         quantum_time: kitsune_p2p_dht::spacetime::STANDARD_QUANTUM_TIME,
+                        dpki_hash: None,
                     },
                     integrity_zomes,
                     coordinator_zomes,

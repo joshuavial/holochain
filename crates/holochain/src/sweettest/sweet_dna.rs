@@ -64,6 +64,7 @@ impl SweetDnaFile {
                 properties: properties.clone(),
                 origin_time: Timestamp::HOLOCHAIN_EPOCH,
                 quantum_time: STANDARD_QUANTUM_TIME,
+                dpki_hash: None,
             })
             .integrity_zomes(iz)
             .coordinator_zomes(cz)

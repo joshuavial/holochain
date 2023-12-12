@@ -316,6 +316,7 @@ pub mod tests {
             network_seed: Some("network_seed".into()),
             origin_time: None,
             quantum_time: None,
+            dpki_hash: None,
         };
         let installed_hash = fixt!(DnaHash);
         let manifest = app_manifest_fixture(location, installed_hash.clone(), modifiers).await;

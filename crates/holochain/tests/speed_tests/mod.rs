@@ -129,6 +129,7 @@ async fn speed_test(n: Option<usize>) -> Arc<TempDir> {
                 properties: SerializedBytes::try_from(()).unwrap(),
                 origin_time: Timestamp::HOLOCHAIN_EPOCH,
                 quantum_time: holochain_p2p::dht::spacetime::STANDARD_QUANTUM_TIME,
+                dpki_hash: None,
             },
             integrity_zomes: vec![TestZomes::from(TestWasm::Anchor).integrity.into_inner()],
             coordinator_zomes: vec![TestZomes::from(TestWasm::Anchor).coordinator.into_inner()],

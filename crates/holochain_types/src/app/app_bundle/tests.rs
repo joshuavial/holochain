@@ -44,6 +44,7 @@ async fn provisioning_1_create() {
         network_seed: Some("network_seed".into()),
         origin_time: None,
         quantum_time: None,
+        dpki_hash: None,
     };
     let (bundle, dna) = app_bundle_fixture(modifiers).await;
 

@@ -96,6 +96,13 @@ pub struct DnaModifiers {
     #[cfg_attr(feature = "full-dna-def", builder(default = "standard_quantum_time()"))]
     #[cfg_attr(feature = "full-dna-def", serde(default = "standard_quantum_time"))]
     pub quantum_time: Duration,
+
+    /// This DNA can only be installed in this conductor if a DPKI service is set up
+    /// which is backed by a DNA with this hash.
+    /// If this is None, then the DNA will be backed by a DPKI service.
+    #[cfg_attr(feature = "full-dna-def", builder(default))]
+    #[cfg_attr(feature = "full-dna-def", serde(default))]
+    pub dpki_hash: Option<DnaHash>,
 }
 
 impl DnaModifiers {
@@ -106,6 +113,7 @@ impl DnaModifiers {
         self.properties = modifiers.properties.unwrap_or(self.properties);
         self.origin_time = modifiers.origin_time.unwrap_or(self.origin_time);
         self.quantum_time = modifiers.quantum_time.unwrap_or(self.quantum_time);
+        self.dpki_hash = modifiers.dpki_hash.unwrap_or(self.dpki_hash);
         self
     }
 }
@@ -125,6 +133,8 @@ pub struct DnaModifiersOpt<P = SerializedBytes> {
     pub origin_time: Option<Timestamp>,
     /// see [`DnaModifiers`]
     pub quantum_time: Option<Duration>,
+    /// see [`DnaModifiers`]
+    pub dpki_hash: Option<Option<DnaHash>>,
 }
 
 impl<P: TryInto<SerializedBytes, Error = E>, E: Into<SerializedBytesError>> Default
@@ -143,6 +153,7 @@ impl<P: TryInto<SerializedBytes, Error = E>, E: Into<SerializedBytesError>> DnaM
             properties: None,
             origin_time: None,
             quantum_time: None,
+            dpki_hash: None,
         }
     }
 
@@ -153,6 +164,7 @@ impl<P: TryInto<SerializedBytes, Error = E>, E: Into<SerializedBytesError>> DnaM
             properties,
             origin_time,
             quantum_time,
+            dpki_hash,
         } = self;
         let properties = if let Some(p) = properties {
             Some(p.try_into()?)
@@ -164,6 +176,7 @@ impl<P: TryInto<SerializedBytes, Error = E>, E: Into<SerializedBytesError>> DnaM
             properties,
             origin_time,
             quantum_time,
+            dpki_hash,
         })
     }
 
