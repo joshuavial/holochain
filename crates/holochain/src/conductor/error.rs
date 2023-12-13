@@ -50,6 +50,9 @@ pub enum ConductorError {
     #[error("Configuration consistency error: {0}")]
     ConfigError(String),
 
+    #[error("Attempted to install a DNA whose dpki_hash does not match the installed DPKI service. Service hash: {0:?}, DNA hash: {1:?}")]
+    DpkiHashMismatch(Option<DnaHash>, DnaHash),
+
     #[error("Config deserialization error: {0}")]
     SerializationError(#[from] serde_yaml::Error),
 

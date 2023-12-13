@@ -736,6 +736,21 @@ mod dna_impls {
 
         /// Install a [`DnaFile`](holochain_types::dna::DnaFile) in this Conductor
         pub async fn register_dna(&self, dna: DnaFile) -> ConductorResult<()> {
+            if let Some(dpki_hash) = &dna.dna_def().modifiers.dpki_hash {
+                let installed_hash = self.services.share_ref(|s| {
+                    s.dpki
+                        .as_ref()
+                        .map(|dpki| dpki.cell_id().dna_hash().clone())
+                });
+
+                // Don't register the DNA if it specifies a DPKI hash that doesn't match the currently installed DPKI service
+                if Some(dpki_hash) != installed_hash.as_ref() {
+                    return Err(ConductorError::DpkiHashMismatch(
+                        installed_hash,
+                        dpki_hash.clone(),
+                    ));
+                }
+            }
             let ribosome = RealRibosome::new(dna, self.config.data_root_path.clone())?;
             let entry_defs = self.register_dna_wasm(ribosome.clone()).await?;
             self.register_dna_entry_defs(entry_defs);

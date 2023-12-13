@@ -99,7 +99,8 @@ pub struct DnaModifiers {
 
     /// This DNA can only be installed in this conductor if a DPKI service is set up
     /// which is backed by a DNA with this hash.
-    /// If this is None, then the DNA will be backed by a DPKI service.
+    ///
+    /// If this is None, then the DNA will be backed by any DPKI service.
     #[cfg_attr(feature = "full-dna-def", builder(default))]
     #[cfg_attr(feature = "full-dna-def", serde(default))]
     pub dpki_hash: Option<DnaHash>,
@@ -201,6 +202,12 @@ impl<P: TryInto<SerializedBytes, Error = E>, E: Into<SerializedBytesError>> DnaM
     /// Return a modified form with the `quantum_time` field set
     pub fn with_quantum_time(mut self, quantum_time: Duration) -> Self {
         self.quantum_time = Some(quantum_time);
+        self
+    }
+
+    /// Return a modified form with the `dpki_hash` field set
+    pub fn with_dpki_hash(mut self, dpki_hash: DnaHash) -> Self {
+        self.dpki_hash = Some(Some(dpki_hash));
         self
     }
 

@@ -39,7 +39,13 @@ pub struct ConductorServices {
 impl ConductorServices {
     /// Get the list of any CellIds which may be protected due to being in use by ConductorServices
     pub fn protected_cell_ids(&self) -> HashSet<&CellId> {
-        let dpki_cells = self.dpki.as_ref().map(|d| d.cell_ids()).unwrap_or_default();
+        let dpki_cells: HashSet<_> = self
+            .dpki
+            .as_ref()
+            .map(|d| d.cell_id())
+            .into_iter()
+            .collect();
+
         let app_store_cells = self
             .app_store
             .as_ref()
