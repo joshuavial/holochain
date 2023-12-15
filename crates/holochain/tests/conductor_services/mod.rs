@@ -22,7 +22,7 @@ async fn initialize_deepkey() {
                 .await
                 .unwrap();
         let response = admin_api
-            .handle_admin_request(AdminRequest::InitializeDeepkey { deepkey_dna })
+            .handle_admin_request(AdminRequest::InstallDeepkey { deepkey_dna })
             .await;
         dbg!(&response);
         assert!(matches!(response, AdminResponse::Ok));
