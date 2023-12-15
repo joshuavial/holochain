@@ -1368,7 +1368,21 @@ mod app_impls {
             let installed_app_id =
                 installed_app_id.unwrap_or_else(|| manifest.app_name().to_owned());
 
-            let agent_key: AgentPubKey = todo!("generate random, or derive using DPKI");
+            let agent_key = if let Some(agent_key) = agent_key {
+                if self.services().dpki.is_some() {
+                    return Err(ConductorError::Other(
+                        "Cannot install app with agent key if DPKI is enabled".into(),
+                    ));
+                } else {
+                    self.keystore.new_sign_keypair_random().await?
+                }
+            } else {
+                if let Some(dpki) = self.services().dpki {
+                    todo!("derive key")
+                } else {
+                    self.keystore.new_sign_keypair_random().await?
+                }
+            };
 
             let local_dnas = self
                 .ribosome_store()
