@@ -37,7 +37,7 @@ pub trait DpkiService: Send + Sync {
     fn cell_id(&self) -> &CellId;
 }
 
-/// Mirrors the output type of the "key_state" zome function in deepkey
+/// Mirrors the output type of the "key_state" zome function in dpki
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum KeyState {
     NotFound,

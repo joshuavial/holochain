@@ -295,15 +295,12 @@ impl AdminInterfaceApi for RealAdminInterfaceApi {
             StorageInfo => Ok(AdminResponse::StorageInfo(
                 self.conductor_handle.storage_info().await?,
             )),
-            InstallDeepkey { deepkey_dna } => {
+            InstallDpki { dpki_dna } => {
                 let network_params = self.conductor_handle.get_dna_runtime();
-                let (deepkey_dna, _) = deepkey_dna
+                let (dpki_dna, _) = dpki_dna
                     .into_dna_file(Default::default(), network_params)
                     .await?;
-                self.conductor_handle
-                    .clone()
-                    .install_deepkey(deepkey_dna)
-                    .await?;
+                self.conductor_handle.clone().install_dpki(dpki_dna).await?;
                 Ok(AdminResponse::Ok)
             }
         }

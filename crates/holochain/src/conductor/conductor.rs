@@ -2144,17 +2144,16 @@ mod service_impls {
         }
 
         pub(crate) async fn initialize_services(self: Arc<Self>) -> ConductorResult<()> {
-            if let Some(cell_id) = self.get_state().await?.conductor_services.deepkey {
+            if let Some(cell_id) = self.get_state().await?.conductor_services.dpki {
                 self.services.share_mut(|s| {
-                    let deepkey =
-                        DeepkeyBuiltin::new(self.clone(), self.keystore().clone(), cell_id);
-                    s.dpki = Some(Arc::new(deepkey));
+                    let dpki = DeepkeyBuiltin::new(self.clone(), self.keystore().clone(), cell_id);
+                    s.dpki = Some(Arc::new(dpki));
                 });
             }
             Ok(())
         }
 
-        pub(crate) async fn install_deepkey(self: Arc<Self>, dna: DnaFile) -> ConductorResult<()> {
+        pub(crate) async fn install_dpki(self: Arc<Self>, dna: DnaFile) -> ConductorResult<()> {
             let dna_hash = dna.dna_hash().clone();
             self.register_dna(dna).await?;
 
@@ -2178,7 +2177,7 @@ mod service_impls {
             self.clone().enable_app(DPKI_APP_ID.into()).await?;
 
             self.update_state(move |mut state| {
-                state.conductor_services.deepkey = Some(cell_id_2);
+                state.conductor_services.dpki = Some(cell_id_2);
                 Ok(state)
             })
             .await?;

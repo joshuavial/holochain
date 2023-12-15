@@ -28,7 +28,7 @@ impl Default for ConductorStateTag {
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize, Default, Debug, SerializedBytes)]
 pub struct ConductorServicesState {
     /// The cell ID used by the built-in Deepkey implementation of the DPKI service
-    pub deepkey: Option<CellId>,
+    pub dpki: Option<CellId>,
 }
 
 /// Mutable conductor state, stored in a DB and writable only via Admin interface.
