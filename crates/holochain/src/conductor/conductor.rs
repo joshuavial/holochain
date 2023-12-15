@@ -1368,6 +1368,8 @@ mod app_impls {
             let installed_app_id =
                 installed_app_id.unwrap_or_else(|| manifest.app_name().to_owned());
 
+            let agent_key: AgentPubKey = todo!("generate random, or derive using DPKI");
+
             let local_dnas = self
                 .ribosome_store()
                 .share_ref(|store| bundle.get_all_dnas_from_store(store));
