@@ -975,7 +975,7 @@ mod network_impls {
             let state = self.get_state().await?;
 
             let all_dna: HashMap<DnaHash, Vec<InstalledAppId>> = HashMap::new();
-            let all_dna = state.installed_apps_and_services().iter().fold(
+            let all_dna = state.installed_apps_and_services().fold(
                 all_dna,
                 |mut acc, (installed_app_id, app)| {
                     for dna_hash in app.all_cells().map(|cell_id| cell_id.dna_hash()) {
@@ -1402,8 +1402,7 @@ mod app_impls {
             let state = self.get_state().await?;
             let all_cells: HashSet<_> = state
                 .installed_apps_and_services()
-                .values()
-                .flat_map(|app| app.all_cells())
+                .flat_map(|(_, app)| app.all_cells())
                 .collect();
             let maybe_duplicate_cell_id = cells_to_create
                 .iter()
@@ -1482,33 +1481,27 @@ mod app_impls {
             let apps_ids: Vec<&String> = match status_filter {
                 Some(Enabled) => conductor_state
                     .enabled_apps_and_services()
-                    .filter(|(id, _)| is_app(id))
-                    .map(|(id, _)| id)
+                    .filter_map(|(id, _)| is_app(id).then_some(id))
                     .collect(),
                 Some(Disabled) => conductor_state
                     .disabled_apps_and_services()
-                    .filter(|(id, _)| is_app(id))
-                    .map(|(id, _)| id)
+                    .filter_map(|(id, _)| is_app(id).then_some(id))
                     .collect(),
                 Some(Running) => conductor_state
                     .running_apps_and_services()
-                    .filter(|(id, _)| is_app(id))
-                    .map(|(id, _)| id)
+                    .filter_map(|(id, _)| is_app(id).then_some(id))
                     .collect(),
                 Some(Stopped) => conductor_state
                     .stopped_apps_and_services()
-                    .filter(|(id, _)| is_app(id))
-                    .map(|(id, _)| id)
+                    .filter_map(|(id, _)| is_app(id).then_some(id))
                     .collect(),
                 Some(Paused) => conductor_state
                     .paused_apps_and_services()
-                    .filter(|(id, _)| is_app(id))
-                    .map(|(id, _)| id)
+                    .filter_map(|(id, _)| is_app(id).then_some(id))
                     .collect(),
                 None => conductor_state
                     .installed_apps_and_services()
-                    .keys()
-                    .filter(|id| is_app(id))
+                    .filter_map(|(id, _)| is_app(id).then_some(id))
                     .collect(),
             };
 
@@ -1591,7 +1584,7 @@ mod app_impls {
         ) -> ConductorResult<Option<AppInfo>> {
             match state.installed_apps_and_services().get(app_id) {
                 None => Ok(None),
-                Some(app) => {
+                Some((app, _)) => {
                     let dna_definitions = self.get_dna_definitions(app)?;
                     Ok(Some(AppInfo::from_installed_app(app, &dna_definitions)))
                 }
@@ -1624,8 +1617,7 @@ mod cell_impls {
                     .get_state()
                     .await?
                     .installed_apps_and_services()
-                    .values()
-                    .flat_map(|app| app.all_cells())
+                    .flat_map(|(_, app)| app.all_cells())
                     .any(|id| id == cell_id);
                 if present {
                     Err(ConductorError::CellDisabled(cell_id.clone()))
@@ -2047,16 +2039,12 @@ mod app_status_impls {
             let (_, delta) = self
                 .update_state_prime(move |mut state| {
                     #[allow(deprecated)]
-                    let apps =
-                        state
-                            .installed_apps_and_services_mut()
-                            .iter_mut()
-                            .filter(|(id, _)| {
-                                app_ids
-                                    .as_ref()
-                                    .map(|ids| ids.contains(&**id))
-                                    .unwrap_or(true)
-                            });
+                    let apps = state.installed_apps_and_services_mut().filter(|(id, _)| {
+                        app_ids
+                            .as_ref()
+                            .map(|ids| ids.contains(&**id))
+                            .unwrap_or(true)
+                    });
                     let delta = apps
                         .into_iter()
                         .map(|(_app_id, app)| {
@@ -2677,7 +2665,6 @@ impl Conductor {
 
         let all_cells: HashSet<&CellId> = state
             .installed_apps_and_services()
-            .iter()
             .flat_map(|(_, app)| app.all_cells().collect::<HashSet<_>>())
             .collect();
 
@@ -2791,7 +2778,6 @@ impl Conductor {
             {
                 state
                     .installed_apps_and_services()
-                    .iter()
                     .filter(|(_, app)| app.status().is_running())
                     .flat_map(|(_id, app)| app.all_enabled_cells().collect::<Vec<&CellId>>())
                     .cloned()
@@ -2931,7 +2917,6 @@ impl Conductor {
                 // if cell id of new clone cell already exists, reject as duplicate
                 if state_copy
                     .installed_apps_and_services()
-                    .iter()
                     .flat_map(|(_, app)| app.all_cells())
                     .any(|cell_id| *cell_id == clone_cell_id)
                 {

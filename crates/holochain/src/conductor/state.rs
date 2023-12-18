@@ -40,19 +40,20 @@ pub struct ConductorServicesState {
 #[cfg_attr(test, derive(PartialEq))]
 pub struct ConductorState {
     /// Unique conductor tag / identifier.
-    #[serde(default)]
     tag: ConductorStateTag,
+
     /// Apps (and services) that have been installed, regardless of status.
-    #[serde(default)]
     installed_apps_and_services: InstalledAppMap,
+
+    /// The counter for all apps ever installed in this Conductor.
+    /// Only increases, not affected by uninstalling apps.
+    apps_installed: InstalledAppIndex,
 
     /// Conductor services that have been installed, to enable initialization
     /// upon restart
-    #[serde(default)]
     pub(crate) conductor_services: ConductorServicesState,
 
     /// List of interfaces any UI can use to access zome functions.
-    #[serde(default)]
     pub(crate) app_interfaces: HashMap<AppInterfaceId, AppInterfaceConfig>,
 }
 
@@ -110,23 +111,30 @@ impl ConductorState {
     }
 
     /// Immutable access to the inner collection of all apps and services
-    pub fn installed_apps_and_services(&self) -> &InstalledAppMap {
-        &self.installed_apps_and_services
+    pub fn installed_apps_and_services(
+        &self,
+    ) -> impl Iterator<Item = (&InstalledAppId, &InstalledApp)> + '_ {
+        self.installed_apps_and_services
+            .iter()
+            .map(|(id, (app, _))| (id, app))
     }
 
     /// Mutable access to the inner collection of all apps
     // #[cfg(test)]
     #[deprecated = "Bare mutable access isn't the best idea"]
-    pub fn installed_apps_and_services_mut(&mut self) -> &mut InstalledAppMap {
-        &mut self.installed_apps_and_services
+    pub fn installed_apps_and_services_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&InstalledAppId, &mut InstalledApp)> + '_ {
+        self.installed_apps_and_services
+            .iter_mut()
+            .map(|(id, (app, _))| (id, app))
     }
 
     /// Iterate over only the "enabled" apps
     pub fn enabled_apps_and_services(
         &self,
     ) -> impl Iterator<Item = (&InstalledAppId, &InstalledApp)> + '_ {
-        self.installed_apps_and_services
-            .iter()
+        self.installed_apps_and_services()
             .filter(|(_, app)| app.status().is_enabled())
     }
 
@@ -134,8 +142,7 @@ impl ConductorState {
     pub fn disabled_apps_and_services(
         &self,
     ) -> impl Iterator<Item = (&InstalledAppId, &InstalledApp)> + '_ {
-        self.installed_apps_and_services
-            .iter()
+        self.installed_apps_and_services()
             .filter(|(_, app)| !app.status().is_enabled())
     }
 
@@ -143,39 +150,34 @@ impl ConductorState {
     pub fn running_apps_and_services(
         &self,
     ) -> impl Iterator<Item = (&InstalledAppId, RunningApp)> + '_ {
-        self.installed_apps_and_services
-            .iter()
-            .filter_map(|(id, app)| {
-                if *app.status() == AppStatus::Running {
-                    let running = RunningApp::from(app.as_ref().clone());
-                    Some((id, running))
-                } else {
-                    None
-                }
-            })
+        self.installed_apps_and_services().filter_map(|(id, app)| {
+            if *app.status() == AppStatus::Running {
+                let running = RunningApp::from(app.as_ref().clone());
+                Some((id, running))
+            } else {
+                None
+            }
+        })
     }
 
     /// Iterate over only the paused apps
     pub fn paused_apps_and_services(
         &self,
     ) -> impl Iterator<Item = (&InstalledAppId, StoppedApp)> + '_ {
-        self.installed_apps_and_services
-            .iter()
-            .filter_map(|(id, app)| {
-                if app.status.is_paused() {
-                    StoppedApp::from_app(app).map(|stopped| (id, stopped))
-                } else {
-                    None
-                }
-            })
+        self.installed_apps_and_services().filter_map(|(id, app)| {
+            if app.status.is_paused() {
+                StoppedApp::from_app(app).map(|stopped| (id, stopped))
+            } else {
+                None
+            }
+        })
     }
 
     /// Iterate over only the "stopped" apps (paused OR disabled)
     pub fn stopped_apps_and_services(
         &self,
     ) -> impl Iterator<Item = (&InstalledAppId, StoppedApp)> + '_ {
-        self.installed_apps_and_services
-            .iter()
+        self.installed_apps_and_services()
             .filter_map(|(id, app)| StoppedApp::from_app(app).map(|stopped| (id, stopped)))
     }
 
@@ -183,6 +185,7 @@ impl ConductorState {
     pub fn get_app(&self, id: &InstalledAppId) -> ConductorResult<&InstalledApp> {
         self.installed_apps_and_services
             .get(id)
+            .map(first_ref)
             .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))
     }
 
@@ -190,6 +193,7 @@ impl ConductorState {
     pub fn get_app_mut(&mut self, id: &InstalledAppId) -> ConductorResult<&mut InstalledApp> {
         self.installed_apps_and_services
             .get_mut(id)
+            .map(first_ref)
             .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))
     }
 
@@ -197,6 +201,7 @@ impl ConductorState {
     pub fn remove_app(&mut self, id: &InstalledAppId) -> ConductorResult<InstalledApp> {
         self.installed_apps_and_services
             .remove(id)
+            .map(first_ref)
             .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))
     }
 
@@ -207,8 +212,11 @@ impl ConductorState {
             return Err(ConductorError::AppAlreadyInstalled(app.id().clone()));
         }
         let stopped_app = StoppedApp::new_fresh(app);
-        self.installed_apps_and_services
-            .insert(stopped_app.clone().into());
+        self.installed_apps_and_services_mut.insert(
+            stopped_app.clone().into(),
+            (stopped_app.clone().into(), self.apps_installed),
+        );
+        self.apps_installed += 1;
         Ok(stopped_app)
     }
 

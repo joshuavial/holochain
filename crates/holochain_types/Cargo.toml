@@ -14,7 +14,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.26"
 async-trait = "0.1"
-automap = { version = "0.1", features = ["serde"] }
 backtrace = "0.3.27"
 base64 = "0.13"
 cfg-if = "0.1"

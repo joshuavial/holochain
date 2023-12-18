@@ -300,16 +300,13 @@ impl InstalledApp {
     }
 }
 
-impl automap::AutoMapped for InstalledApp {
-    type Key = InstalledAppId;
+/// Stores the order in which an app was installed, a unique index for each app
+/// installation within this conductor
+pub type InstalledAppIndex = u32;
 
-    fn key(&self) -> &Self::Key {
-        &self.app.installed_app_id
-    }
-}
-
-/// A map from InstalledAppId -> InstalledApp
-pub type InstalledAppMap = automap::AutoHashMap<InstalledApp>;
+/// Storage for installed apps, keyed by ID and also including access to the installation
+/// index
+pub type InstalledAppMap = HashMap<InstalledAppId, (InstalledApp, InstalledAppIndex)>;
 
 /// An active app
 #[derive(
