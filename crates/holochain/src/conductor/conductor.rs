@@ -1507,8 +1507,11 @@ mod app_impls {
 
             let app_infos: Vec<AppInfo> = apps_ids
                 .into_iter()
-                .map(|app_id| self.get_app_info_inner(app_id, &conductor_state))
-                .collect::<Result<Vec<_>, _>>()?
+                .map(|app_id| {
+                    self.get_app_info_inner(app_id, &conductor_state)?
+                        .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))
+                })
+                .collect::<Result<Vec<_>, _>>()
                 .into_iter()
                 .flatten()
                 .collect();
@@ -1582,9 +1585,9 @@ mod app_impls {
             app_id: &InstalledAppId,
             state: &ConductorState,
         ) -> ConductorResult<Option<AppInfo>> {
-            match state.installed_apps_and_services().get(app_id) {
+            match state.get_app(app_id) {
                 None => Ok(None),
-                Some((app, _)) => {
+                Some(app) => {
                     let dna_definitions = self.get_dna_definitions(app)?;
                     Ok(Some(AppInfo::from_installed_app(app, &dna_definitions)))
                 }
@@ -1718,9 +1721,12 @@ mod clone_cell_impls {
                     let app_id = app_id.to_owned();
                     let clone_cell_id = clone_cell_id.to_owned();
                     move |mut state| {
-                        let app = state.get_app_mut(&app_id)?;
+                        let app = state
+                            .get_app_mut(&app_id)
+                            .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
                         let clone_id = app.get_clone_id(&clone_cell_id)?;
                         let cell_id = app.get_clone_cell_id(&clone_cell_id)?;
+
                         app.disable_clone_cell(&clone_id)?;
                         Ok((state, cell_id))
                     }
@@ -1741,7 +1747,10 @@ mod clone_cell_impls {
                     let app_id = payload.app_id.to_owned();
                     let clone_cell_id = payload.clone_cell_id.to_owned();
                     move |mut state| {
-                        let app = state.get_app_mut(&app_id)?;
+                        let app = state
+                            .get_app_mut(&app_id)
+                            .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
+
                         let clone_id = app.get_disabled_clone_id(&clone_cell_id)?;
                         let (cell_id, _) = app.enable_clone_cell(&clone_id)?.into_inner();
                         let app_role = app.role(&clone_id.as_base_role_name())?;
@@ -1780,7 +1789,9 @@ mod clone_cell_impls {
                 let app_id = app_id.clone();
                 let clone_cell_id = clone_cell_id.clone();
                 move |mut state| {
-                    let app = state.get_app_mut(&app_id)?;
+                    let app = state
+                        .get_app_mut(&app_id)
+                        .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
                     let clone_id = app.get_disabled_clone_id(&clone_cell_id)?;
                     app.delete_clone_cell(&clone_id)?;
                     Ok((state, ()))
@@ -2766,7 +2777,9 @@ impl Conductor {
 
         let app_cells: HashSet<CellId> = match app_id {
             Some(app_id) => {
-                let app = state.get_app(app_id)?;
+                let app = state
+                    .get_app(app_id)
+                    .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
                 if app.status().is_running() {
                     app.all_enabled_cells().cloned().collect()
                 } else {
@@ -2853,7 +2866,9 @@ impl Conductor {
             .update_state_prime({
                 let app_id = app_id.clone();
                 move |mut state| {
-                    let app = state.remove_app(&app_id)?;
+                    let app = state
+                        .remove_app(&app_id)
+                        .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
                     Ok((state, app))
                 }
             })
@@ -2876,7 +2891,9 @@ impl Conductor {
                 let app_id = app_id.clone();
                 let role_name = role_name.clone();
                 move |mut state| {
-                    let app = state.get_app_mut(&app_id)?;
+                    let app = state
+                        .get_app_mut(&app_id)
+                        .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
                     let app_role = app.role(&role_name)?;
                     if app_role.is_clone_limit_reached() {
                         return Err(ConductorError::AppError(AppError::CloneLimitExceeded(
@@ -2910,7 +2927,9 @@ impl Conductor {
         let (_, installed_clone_cell) = self
             .update_state_prime(move |mut state| {
                 let state_copy = state.clone();
-                let app = state.get_app_mut(&app_id)?;
+                let app = state
+                    .get_app_mut(&app_id)
+                    .ok_or_else(|| ConductorError::AppNotInstalled(app_id.clone()))?;
                 let agent_key = app.role(&role_name)?.agent_key().to_owned();
                 let clone_cell_id = CellId::new(clone_dna_hash, agent_key);
 

@@ -182,27 +182,22 @@ impl ConductorState {
     }
 
     /// Getter for a single app. Returns error if app missing.
-    pub fn get_app(&self, id: &InstalledAppId) -> ConductorResult<&InstalledApp> {
-        self.installed_apps_and_services
-            .get(id)
-            .map(first_ref)
-            .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))
+    pub fn get_app(&self, id: &InstalledAppId) -> Option<&InstalledApp> {
+        self.installed_apps_and_services.get(id).map(first_ref)
     }
 
     /// Getter for a mutable reference to a single app. Returns error if app missing.
-    pub fn get_app_mut(&mut self, id: &InstalledAppId) -> ConductorResult<&mut InstalledApp> {
+    pub fn get_app_mut(&mut self, id: &InstalledAppId) -> Option<&mut InstalledApp> {
         self.installed_apps_and_services
             .get_mut(id)
-            .map(first_ref)
-            .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))
+            .map(|(app, _)| app)
     }
 
     /// Getter for a single app. Returns error if app missing.
-    pub fn remove_app(&mut self, id: &InstalledAppId) -> ConductorResult<InstalledApp> {
+    pub fn remove_app(&mut self, id: &InstalledAppId) -> Option<InstalledApp> {
         self.installed_apps_and_services
             .remove(id)
-            .map(first_ref)
-            .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))
+            .map(|(app, _)| app)
     }
 
     /// Add an app in the Deactivated state. Returns an error if an app is already
@@ -212,8 +207,8 @@ impl ConductorState {
             return Err(ConductorError::AppAlreadyInstalled(app.id().clone()));
         }
         let stopped_app = StoppedApp::new_fresh(app);
-        self.installed_apps_and_services_mut.insert(
-            stopped_app.clone().into(),
+        self.installed_apps_and_services.insert(
+            stopped_app.id().clone(),
             (stopped_app.clone().into(), self.apps_installed),
         );
         self.apps_installed += 1;
@@ -228,7 +223,7 @@ impl ConductorState {
         id: &InstalledAppId,
         transition: AppStatusTransition,
     ) -> ConductorResult<(&InstalledApp, AppStatusFx)> {
-        let app = self
+        let (app, _) = self
             .installed_apps_and_services
             .get_mut(id)
             .ok_or_else(|| ConductorError::AppNotInstalled(id.clone()))?;
