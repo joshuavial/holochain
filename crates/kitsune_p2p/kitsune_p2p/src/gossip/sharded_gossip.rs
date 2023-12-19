@@ -355,6 +355,8 @@ impl ShardedGossip {
                     vec![ShardedGossipWire::error(e.to_string())]
                 }
             };
+
+            // Queue up the responses to be sent.
             self.state.share_mut(|i, _| {
                 i.push_outgoing(outgoing.into_iter().map(|msg| {
                     (
@@ -366,6 +368,7 @@ impl ShardedGossip {
                 Ok(())
             })?;
         }
+
         if let Some(outgoing) = outgoing {
             let cert = outgoing.0.clone();
             if let Err(err) = self.process_outgoing(outgoing).await {
@@ -866,6 +869,7 @@ impl ShardedGossipLocal {
         })
     }
 
+    /// Receive an incoming gossip message from another node and try to produce response messages.
     async fn process_incoming(
         &self,
         peer_cert: NodeCert,
