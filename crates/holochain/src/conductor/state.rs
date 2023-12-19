@@ -3,6 +3,7 @@
 
 use holochain_conductor_api::config::InterfaceDriver;
 use holochain_conductor_api::signal_subscription::SignalSubscription;
+use holochain_services::DpkiInstallation;
 use holochain_services::DPKI_APP_ID;
 use holochain_types::prelude::*;
 use serde::Deserialize;
@@ -27,8 +28,8 @@ impl Default for ConductorStateTag {
 /// Info required to re-initialize conductor services upon restart
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize, Default, Debug, SerializedBytes)]
 pub struct ConductorServicesState {
-    /// The cell ID used by the built-in Deepkey implementation of the DPKI service
-    pub dpki: Option<CellId>,
+    /// Data needed to initialize the DPKI service, if installed
+    pub dpki: Option<DpkiInstallation>,
 }
 
 /// Mutable conductor state, stored in a DB and writable only via Admin interface.
@@ -47,7 +48,7 @@ pub struct ConductorState {
 
     /// The counter for all apps ever installed in this Conductor.
     /// Only increases, not affected by uninstalling apps.
-    apps_installed: InstalledAppIndex,
+    pub(crate) apps_installed: InstalledAppIndex,
 
     /// Conductor services that have been installed, to enable initialization
     /// upon restart
@@ -241,8 +242,10 @@ impl ConductorState {
     }
 }
 
+/// Something with access to the ConductorState via the Conductor database
 #[async_trait::async_trait]
 pub trait ConductorStateAccess: Send + Sync + 'static {
+    /// Get the current state
     async fn get_state(&self) -> ConductorResult<ConductorState>;
 
     /// Update the internal state with a pure function mapping old state to new

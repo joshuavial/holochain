@@ -75,8 +75,8 @@ pub struct Spaces {
     pub(crate) shutting_down: Arc<AtomicBool>,
 }
 
-pub type StateLock = Arc<tokio::sync::Mutex<DbWrite<DbKindConductor>>>;
-pub type StateLockGuard<'a> = tokio::sync::MutexGuard<'a, DbWrite<DbKindConductor>>;
+pub(crate) type StateLock = Arc<tokio::sync::Mutex<DbWrite<DbKindConductor>>>;
+pub(crate) type StateLockGuard<'a> = tokio::sync::MutexGuard<'a, DbWrite<DbKindConductor>>;
 
 #[derive(Clone)]
 /// This is the set of data required at the

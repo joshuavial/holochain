@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::conductor::api::error::ConductorApiError;
+use crate::conductor::state::ConductorStateAccess;
 use crate::{conductor::error::ConductorError, sweettest::*};
 use ::fixt::prelude::strum_macros;
 use holo_hash::{AgentPubKey, DnaHash};
@@ -99,7 +100,7 @@ async fn clone_only_provisioning_creates_no_cell_and_allows_cloning() {
             .await
             .unwrap();
 
-        let state = conductor.get_state().await.unwrap();
+        let state = conductor.state_lock().await.get_state().await.unwrap();
         let app = state.get_app(&"app_1".to_string()).unwrap();
 
         assert_eq!(clone_cell.name, "Johnny".to_string());
@@ -126,7 +127,7 @@ async fn clone_only_provisioning_creates_no_cell_and_allows_cloning() {
                 AppError::CloneLimitExceeded(1, _)
             ))
         );
-        let state = conductor.get_state().await.unwrap();
+        let state = conductor.state_lock().await.get_state().await.unwrap();
         let app = state.get_app(&"app_1".to_string()).unwrap();
 
         assert_eq!(app.all_cells().count(), 1);
