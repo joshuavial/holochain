@@ -1,12 +1,17 @@
 //! This module contains data and functions for running operations
 //! at the level of a [`DnaHash`] space.
 //! Multiple [`Cell`](crate::conductor::Cell)'s could share the same space.
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicBool, Arc},
+    time::Duration,
+};
 
 use super::{
     conductor::RwShare,
     error::ConductorResult,
     p2p_agent_store::{self, P2pBatch},
+    state::ConductorStateAccess,
 };
 use crate::conductor::{error::ConductorError, state::ConductorState};
 use crate::core::{
@@ -61,10 +66,17 @@ pub struct Spaces {
     pub(crate) db_sync_strategy: DbSyncStrategy,
     /// The map of running queue consumer workflows.
     pub(crate) queue_consumer_map: QueueConsumerMap,
-    pub(crate) conductor_db: DbWrite<DbKindConductor>,
     pub(crate) wasm_db: DbWrite<DbKindWasm>,
+    pub(crate) state_access: StateLock,
     network_config: KitsuneP2pConfig,
+
+    /// Set to true when `conductor.shutdown()` has been called, so that other
+    /// tasks can check on the shutdown status
+    pub(crate) shutting_down: Arc<AtomicBool>,
 }
+
+pub type StateLock = Arc<tokio::sync::Mutex<DbWrite<DbKindConductor>>>;
+pub type StateLockGuard<'a> = tokio::sync::MutexGuard<'a, DbWrite<DbKindConductor>>;
 
 #[derive(Clone)]
 /// This is the set of data required at the
@@ -146,7 +158,8 @@ impl Spaces {
             db_dir: Arc::new(root_db_dir),
             db_sync_strategy,
             queue_consumer_map: QueueConsumerMap::new(),
-            conductor_db,
+            shutting_down: Arc::new(AtomicBool::new(false)),
+            state_access: Arc::new(tokio::sync::Mutex::new(conductor_db)),
             wasm_db,
             network_config: config.network.clone().unwrap_or_default(),
         })
@@ -154,12 +167,14 @@ impl Spaces {
 
     /// Block some target.
     pub async fn block(&self, input: Block) -> DatabaseResult<()> {
-        holochain_state::block::block(&self.conductor_db, input).await
+        let db = self.state_access.lock().await;
+        holochain_state::block::block(&db, input).await
     }
 
     /// Unblock some target.
     pub async fn unblock(&self, input: Block) -> DatabaseResult<()> {
-        holochain_state::block::unblock(&self.conductor_db, input).await
+        let db = self.state_access.lock().await;
+        holochain_state::block::unblock(&db, input).await
     }
 
     async fn node_agents_in_spaces(
@@ -231,7 +246,9 @@ impl Spaces {
             return Ok(false);
         }
 
-        self.conductor_db
+        self.state_access
+            .lock()
+            .await
             .read_async(move |txn| {
                 Ok(
                     // If the target_id is directly blocked then we always return true.
@@ -252,69 +269,6 @@ impl Spaces {
                 )
             })
             .await
-    }
-
-    /// Get the holochain conductor state
-    pub async fn get_state(&self) -> ConductorResult<ConductorState> {
-        let state = self
-            .conductor_db
-            .read_async(|txn| {
-                let state = txn
-                    .query_row("SELECT blob FROM ConductorState WHERE id = 1", [], |row| {
-                        row.get("blob")
-                    })
-                    .optional()?;
-                match state {
-                    Some(state) => ConductorResult::Ok(Some(from_blob(state)?)),
-                    None => ConductorResult::Ok(None),
-                }
-            })
-            .await?;
-
-        match state {
-            Some(state) => Ok(state),
-            // update_state will again try to read the state. It's a little
-            // inefficient in the infrequent case where we haven't saved the
-            // state yet, but more atomic, so worth it.
-            None => self.update_state(Ok).await,
-        }
-    }
-
-    /// Update the internal state with a pure function mapping old state to new
-    pub async fn update_state<F: Send>(&self, f: F) -> ConductorResult<ConductorState>
-    where
-        F: FnOnce(ConductorState) -> ConductorResult<ConductorState> + 'static,
-    {
-        let (state, _) = self.update_state_prime(|s| Ok((f(s)?, ()))).await?;
-        Ok(state)
-    }
-
-    /// Update the internal state with a pure function mapping old state to new,
-    /// which may also produce an output value which will be the output of
-    /// this function
-    pub async fn update_state_prime<F, O>(&self, f: F) -> ConductorResult<(ConductorState, O)>
-    where
-        F: FnOnce(ConductorState) -> ConductorResult<(ConductorState, O)> + Send + 'static,
-        O: Send + 'static,
-    {
-        let output = self
-            .conductor_db
-            .write_async(move |txn| {
-                let state = txn
-                    .query_row("SELECT blob FROM ConductorState WHERE id = 1", [], |row| {
-                        row.get("blob")
-                    })
-                    .optional()?;
-                let state = match state {
-                    Some(state) => from_blob(state)?,
-                    None => ConductorState::default(),
-                };
-                let (new_state, output) = f(state)?;
-                mutations::insert_conductor_state(txn, (&new_state).try_into()?)?;
-                Result::<_, ConductorError>::Ok((new_state, output))
-            })
-            .await?;
-        Ok(output)
     }
 
     /// Get something from every space
@@ -673,6 +627,122 @@ impl Spaces {
         self.network_config
             .tuning_params
             .danger_gossip_recent_threshold()
+    }
+
+    /// A gate to put at the top of public functions to ensure that work is not
+    /// attempted after a shutdown has been issued
+    pub fn check_running(&self) -> ConductorResult<()> {
+        if self
+            .shutting_down
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
+            Err(ConductorError::ShuttingDown)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Broadcasts the shutdown signal to all managed tasks
+    /// and returns a future to await for shutdown to complete.
+    pub fn shutdown(&self) {
+        self.shutting_down
+            .store(true, std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+#[async_trait::async_trait]
+impl ConductorStateAccess for DbWrite<DbKindConductor> {
+    /// Get the holochain conductor state
+    async fn get_state(&self) -> ConductorResult<ConductorState> {
+        let state = self
+            .read_async(|txn| {
+                let state = txn
+                    .query_row("SELECT blob FROM ConductorState WHERE id = 1", [], |row| {
+                        row.get("blob")
+                    })
+                    .optional()?;
+                match state {
+                    Some(state) => ConductorResult::Ok(Some(from_blob(state)?)),
+                    None => ConductorResult::Ok(None),
+                }
+            })
+            .await?;
+
+        match state {
+            Some(state) => Ok(state),
+            // update_state will again try to read the state. It's a little
+            // inefficient in the infrequent case where we haven't saved the
+            // state yet, but more atomic, so worth it.
+            None => self.update_state(Ok).await,
+        }
+    }
+
+    /// Update the internal state with a pure function mapping old state to new
+    async fn update_state<F: Send>(&self, f: F) -> ConductorResult<ConductorState>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<ConductorState> + 'static,
+    {
+        let (state, _) = self.update_state_prime(|s| Ok((f(s)?, ()))).await?;
+        Ok(state)
+    }
+
+    /// Update the internal state with a pure function mapping old state to new,
+    /// which may also produce an output value which will be the output of
+    /// this function
+    async fn update_state_prime<F, O>(&self, f: F) -> ConductorResult<(ConductorState, O)>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<(ConductorState, O)> + Send + 'static,
+        O: Send + 'static,
+    {
+        let output = self
+            .write_async(move |txn| {
+                let state = txn
+                    .query_row("SELECT blob FROM ConductorState WHERE id = 1", [], |row| {
+                        row.get("blob")
+                    })
+                    .optional()?;
+                let state = match state {
+                    Some(state) => from_blob(state)?,
+                    None => ConductorState::default(),
+                };
+                let (new_state, output) = f(state)?;
+                mutations::insert_conductor_state(txn, (&new_state).try_into()?)?;
+                Result::<_, ConductorError>::Ok((new_state, output))
+            })
+            .await?;
+        Ok(output)
+    }
+}
+
+#[async_trait::async_trait]
+// #[cfg(feature = "test_utils")]
+impl ConductorStateAccess for Spaces {
+    async fn get_state(&self) -> ConductorResult<ConductorState> {
+        let lock = self.state_access.lock().await;
+        let ret = lock.get_state().await;
+        drop(lock);
+        ret
+    }
+
+    async fn update_state<F: Send>(&self, f: F) -> ConductorResult<ConductorState>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<ConductorState> + 'static,
+    {
+        let lock = self.state_access.lock().await;
+        let ret = lock.update_state(f).await;
+        drop(lock);
+        ret
+    }
+
+    async fn update_state_prime<F, O>(&self, f: F) -> ConductorResult<(ConductorState, O)>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<(ConductorState, O)> + Send + 'static,
+        O: Send + 'static,
+    {
+        let lock = self.state_access.lock().await;
+        let ret = lock.update_state_prime(f).await;
+        drop(lock);
+        ret
     }
 }
 

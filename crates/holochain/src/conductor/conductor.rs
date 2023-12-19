@@ -55,6 +55,7 @@ use super::space::Spaces;
 use super::state::AppInterfaceConfig;
 use super::state::AppInterfaceId;
 use super::state::ConductorState;
+use super::state::ConductorStateAccess;
 use super::CellError;
 use super::{api::RealAdminInterfaceApi, manager::TaskManagerClient};
 use crate::conductor::cell::Cell;
@@ -110,7 +111,6 @@ use rusqlite::Transaction;
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc::error::SendError;
@@ -208,10 +208,6 @@ pub struct Conductor {
     /// The map of dna hash spaces.
     pub(crate) spaces: Spaces,
 
-    /// Set to true when `conductor.shutdown()` has been called, so that other
-    /// tasks can check on the shutdown status
-    shutting_down: Arc<AtomicBool>,
-
     /// The admin websocket ports this conductor has open.
     /// This exists so that we can run tests and bind to port 0, and find out
     /// the dynamically allocated port later.
@@ -277,7 +273,6 @@ mod startup_shutdown_impls {
                 spaces,
                 running_cells: RwShare::new(HashMap::new()),
                 config,
-                shutting_down: Arc::new(AtomicBool::new(false)),
                 app_interfaces: RwShare::new(HashMap::new()),
                 task_manager: TaskManagerClient::new(outcome_sender, tracing_scope),
                 // Must be initialized later, since it requires an Arc<Conductor>
@@ -295,14 +290,7 @@ mod startup_shutdown_impls {
         /// A gate to put at the top of public functions to ensure that work is not
         /// attempted after a shutdown has been issued
         pub fn check_running(&self) -> ConductorResult<()> {
-            if self
-                .shutting_down
-                .load(std::sync::atomic::Ordering::Relaxed)
-            {
-                Err(ConductorError::ShuttingDown)
-            } else {
-                Ok(())
-            }
+            self.spaces.check_running()
         }
 
         /// Take ownership of the TaskManagerClient as well as the task which completes
@@ -314,10 +302,10 @@ mod startup_shutdown_impls {
         /// Broadcasts the shutdown signal to all managed tasks
         /// and returns a future to await for shutdown to complete.
         pub fn shutdown(&self) -> JoinHandle<TaskManagerResult> {
-            self.shutting_down
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-
             use ghost_actor::GhostControlSender;
+
+            self.spaces.shutdown();
+
             let ghost_shutdown = self.holochain_p2p.ghost_actor_shutdown_immediate();
             let mut tm = self.task_manager();
             let task = self.detach_task_management().expect("Attempting to shut down after already detaching task management or previous shutdown");
@@ -449,6 +437,7 @@ mod interface_impls {
                 Ok(())
             })?;
             let config = AppInterfaceConfig::websocket(port);
+
             self.update_state(|mut state| {
                 state.app_interfaces.insert(interface_id, config);
                 Ok(state)
@@ -796,14 +785,8 @@ mod network_impls {
             nonce: Nonce256Bits,
             expires: Timestamp,
         ) -> ConductorResult<WitnessNonceResult> {
-            Ok(witness_nonce(
-                &self.spaces.conductor_db,
-                agent,
-                nonce,
-                Timestamp::now(),
-                expires,
-            )
-            .await?)
+            let db = self.spaces.state_access.lock().await;
+            Ok(witness_nonce(&db, agent, nonce, Timestamp::now(), expires).await?)
         }
 
         /// Block some target.
@@ -1368,6 +1351,10 @@ mod app_impls {
             let installed_app_id =
                 installed_app_id.unwrap_or_else(|| manifest.app_name().to_owned());
 
+            // Lock the state mutex while we install the app, to ensure that the
+            // app index doesn't advance
+            let state_lock = self.spaces.state_access.lock().await;
+
             let agent_key = if let Some(agent_key) = agent_key {
                 if self.services().dpki.is_some() {
                     return Err(ConductorError::Other(
@@ -1387,6 +1374,7 @@ mod app_impls {
             let local_dnas = self
                 .ribosome_store()
                 .share_ref(|store| bundle.get_all_dnas_from_store(store));
+
             let ops = bundle
                 .resolve_cells(
                     &local_dnas,
@@ -1399,7 +1387,7 @@ mod app_impls {
             let cells_to_create = ops.cells_to_create();
 
             // check if cells_to_create contains a cell identical to an existing one
-            let state = self.get_state().await?;
+            let state = state_lock.get_state().await?;
             let all_cells: HashSet<_> = state
                 .installed_apps_and_services()
                 .flat_map(|(_, app)| app.all_cells())
@@ -1430,7 +1418,12 @@ mod app_impls {
                 let app = InstalledAppCommon::new(installed_app_id, agent_key, roles, manifest)?;
 
                 // Update the db
-                let stopped_app = self.add_disabled_app_to_db(app).await?;
+                let (_, (stopped_app, _index)) = state_lock
+                    .update_state_prime(move |mut state| {
+                        let stopped_app = state.add_app(app)?;
+                        Ok((state, stopped_app))
+                    })
+                    .await?;
 
                 // Return the result, which be may an error if no_rollback was specified
                 genesis_result.map(|()| stopped_app)
@@ -1874,7 +1867,7 @@ mod app_status_impls {
         pub(crate) async fn add_disabled_app_to_db(
             &self,
             app: InstalledAppCommon,
-        ) -> ConductorResult<StoppedApp> {
+        ) -> ConductorResult<(StoppedApp, InstalledAppIndex)> {
             let (_, stopped_app) = self
                 .update_state_prime(move |mut state| {
                     let stopped_app = state.add_app(app)?;
@@ -2188,34 +2181,13 @@ mod service_impls {
 
 /// Methods related to management of Conductor state
 mod state_impls {
+    use crate::conductor::space::StateLockGuard;
+
     use super::*;
 
     impl Conductor {
-        pub(crate) async fn get_state(&self) -> ConductorResult<ConductorState> {
-            self.spaces.get_state().await
-        }
-
-        /// Update the internal state with a pure function mapping old state to new
-        pub(crate) async fn update_state<F: Send>(&self, f: F) -> ConductorResult<ConductorState>
-        where
-            F: FnOnce(ConductorState) -> ConductorResult<ConductorState> + 'static,
-        {
-            self.spaces.update_state(f).await
-        }
-
-        /// Update the internal state with a pure function mapping old state to new,
-        /// which may also produce an output value which will be the output of
-        /// this function
-        pub(crate) async fn update_state_prime<F, O>(
-            &self,
-            f: F,
-        ) -> ConductorResult<(ConductorState, O)>
-        where
-            F: FnOnce(ConductorState) -> ConductorResult<(ConductorState, O)> + Send + 'static,
-            O: Send + 'static,
-        {
-            self.check_running()?;
-            self.spaces.update_state_prime(f).await
+        pub async fn state_lock(&self) -> StateLockGuard {
+            self.spaces.state_access.lock().await
         }
     }
 }
@@ -2974,6 +2946,29 @@ impl Conductor {
                 }
             });
         println!("\n###HOLOCHAIN_SETUP###\n{}###HOLOCHAIN_SETUP_END###", out);
+    }
+}
+
+#[async_trait::async_trait]
+// #[cfg(feature = "test_utils")]
+impl ConductorStateAccess for Conductor {
+    async fn get_state(&self) -> ConductorResult<ConductorState> {
+        self.spaces.get_state().await
+    }
+
+    async fn update_state<F: Send>(&self, f: F) -> ConductorResult<ConductorState>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<ConductorState> + 'static,
+    {
+        self.spaces.update_state(f).await
+    }
+
+    async fn update_state_prime<F, O>(&self, f: F) -> ConductorResult<(ConductorState, O)>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<(ConductorState, O)> + Send + 'static,
+        O: Send + 'static,
+    {
+        self.spaces.update_state_prime(f).await
     }
 }
 

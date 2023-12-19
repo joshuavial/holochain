@@ -174,7 +174,7 @@ impl ConductorBuilder {
             outcome_tx,
         );
 
-        let shutting_down = conductor.shutting_down.clone();
+        let shutting_down = conductor.spaces.shutting_down.clone();
 
         #[cfg(any(test, feature = "test_utils"))]
         let conductor = Self::update_fake_state(self.state, conductor).await?;

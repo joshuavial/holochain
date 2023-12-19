@@ -202,17 +202,21 @@ impl ConductorState {
 
     /// Add an app in the Deactivated state. Returns an error if an app is already
     /// present at the given ID.
-    pub fn add_app(&mut self, app: InstalledAppCommon) -> ConductorResult<StoppedApp> {
+    pub fn add_app(
+        &mut self,
+        app: InstalledAppCommon,
+    ) -> ConductorResult<(StoppedApp, InstalledAppIndex)> {
         if self.installed_apps_and_services.contains_key(app.id()) {
             return Err(ConductorError::AppAlreadyInstalled(app.id().clone()));
         }
         let stopped_app = StoppedApp::new_fresh(app);
+        let index = self.apps_installed;
         self.installed_apps_and_services.insert(
             stopped_app.id().clone(),
-            (stopped_app.clone().into(), self.apps_installed),
+            (stopped_app.clone().into(), index),
         );
         self.apps_installed += 1;
-        Ok(stopped_app)
+        Ok((stopped_app.into(), index))
     }
 
     /// Update the status of an installed app in-place.
@@ -235,6 +239,24 @@ impl ConductorState {
     pub fn interface_by_id(&self, id: &AppInterfaceId) -> Option<AppInterfaceConfig> {
         self.app_interfaces.get(id).cloned()
     }
+}
+
+#[async_trait::async_trait]
+pub trait ConductorStateAccess: Send + Sync + 'static {
+    async fn get_state(&self) -> ConductorResult<ConductorState>;
+
+    /// Update the internal state with a pure function mapping old state to new
+    async fn update_state<F: Send>(&self, f: F) -> ConductorResult<ConductorState>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<ConductorState> + 'static;
+
+    /// Update the internal state with a pure function mapping old state to new,
+    /// which may also produce an output value which will be the output of
+    /// this function
+    async fn update_state_prime<F, O>(&self, f: F) -> ConductorResult<(ConductorState, O)>
+    where
+        F: FnOnce(ConductorState) -> ConductorResult<(ConductorState, O)> + Send + 'static,
+        O: Send + 'static;
 }
 
 /// Here, interfaces are user facing and make available zome functions to
