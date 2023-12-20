@@ -217,7 +217,7 @@ impl ConductorState {
             (stopped_app.clone().into(), index),
         );
         self.apps_installed += 1;
-        Ok((stopped_app.into(), index))
+        Ok((stopped_app, index))
     }
 
     /// Update the status of an installed app in-place.

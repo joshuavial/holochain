@@ -1363,13 +1363,11 @@ mod app_impls {
                 } else {
                     agent_key
                 }
+            } else if let Some(dpki) = self.services().dpki {
+                let index = state_lock.get_state().await?.apps_installed;
+                dpki.derive_and_register_new_key(index).await?
             } else {
-                if let Some(dpki) = self.services().dpki {
-                    let index = state_lock.get_state().await?.apps_installed;
-                    dpki.derive_and_register_new_key(index).await?
-                } else {
-                    self.keystore.new_sign_keypair_random().await?
-                }
+                self.keystore.new_sign_keypair_random().await?
             };
 
             let local_dnas = self
