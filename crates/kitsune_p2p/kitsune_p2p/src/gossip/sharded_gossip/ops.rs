@@ -298,6 +298,7 @@ impl ShardedGossipLocal {
         source: FetchSource,
         ops: Vec<OpHashSized>,
     ) -> KitsuneResult<()> {
+        tracing::info!(?ops, "incoming_missing_op_hashes");
         for op_hash in ops {
             let (hash, size) = op_hash.into_inner();
             let request = FetchPoolPush {
