@@ -2135,6 +2135,11 @@ mod service_impls {
         }
 
         pub(crate) async fn initialize_services(self: Arc<Self>) -> ConductorResult<()> {
+            self.initialize_service_dpki().await?;
+            Ok(())
+        }
+
+        pub(crate) async fn initialize_service_dpki(self: Arc<Self>) -> ConductorResult<()> {
             if let Some(installation) = self.get_state().await?.conductor_services.dpki {
                 self.services.share_mut(|s| {
                     let dpki =
@@ -2177,6 +2182,8 @@ mod service_impls {
                 Ok(state)
             })
             .await?;
+
+            self.initialize_service_dpki().await?;
 
             Ok(())
         }
