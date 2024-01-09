@@ -28,8 +28,8 @@ impl Default for ConductorStateTag {
 /// Info required to re-initialize conductor services upon restart
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize, Default, Debug, SerializedBytes)]
 pub struct ConductorServicesState {
-    /// Data needed to initialize the DPKI service, if installed
-    pub dpki: Option<DpkiInstallation>,
+    /// Data needed to initialize the DPKI services, if any are installed
+    pub dpki: HashMap<DnaHash, DpkiInstallation>,
 }
 
 /// Mutable conductor state, stored in a DB and writable only via Admin interface.

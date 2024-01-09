@@ -32,10 +32,7 @@ impl SweetDnaFile {
     {
         Ok(DnaBundle::read_from_file(path)
             .await?
-            .into_dna_file(
-                modifiers.serialized().map_err(SerializedBytesError::from)?,
-                dna_compat,
-            )
+            .into_dna_file(modifiers.serialized().map_err(SerializedBytesError::from)?)
             .await?
             .0)
     }

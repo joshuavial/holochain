@@ -85,6 +85,13 @@ impl DnaManifest {
         }
     }
 
+    /// Getter for network_seed
+    pub fn compatibility(&self) -> DnaCompat {
+        match self {
+            DnaManifest::V1(manifest) => manifest.integrity.compatibility.clone(),
+        }
+    }
+
     /// Getter for name
     pub fn name(&self) -> String {
         match self {

@@ -1341,8 +1341,6 @@ mod app_impls {
             #[cfg(not(feature = "chc"))]
             let ignore_genesis_failure = false;
 
-            let dna_compat = self.get_dna_compat();
-
             let InstallAppPayload {
                 source,
                 agent_key,
@@ -1372,7 +1370,7 @@ mod app_impls {
                 .ribosome_store()
                 .share_ref(|store| bundle.get_all_dnas_from_store(store));
             let ops = bundle
-                .resolve_cells(&local_dnas, agent_key.clone(), membrane_proofs, dna_compat)
+                .resolve_cells(&local_dnas, agent_key.clone(), membrane_proofs)
                 .await?;
 
             let cells_to_create = ops.cells_to_create();
@@ -2125,11 +2123,25 @@ mod service_impls {
         }
 
         pub(crate) async fn initialize_services(self: Arc<Self>) -> ConductorResult<()> {
-            if let Some(installation) = self.get_state().await?.conductor_services.dpki {
+            let dpki: HashMap<DnaHash, Arc<dyn DpkiCell>> = self
+                .get_state()
+                .await?
+                .conductor_services
+                .dpki
+                .iter()
+                .map(|(hash, installation)| {
+                    let dpki: Arc<dyn DpkiCell> = Arc::new(DeepkeyBuiltin::new(
+                        self.clone(),
+                        self.keystore().clone(),
+                        installation.clone(),
+                    ));
+                    (hash.clone(), dpki)
+                })
+                .collect();
+
+            if !dpki.is_empty() {
                 self.services.share_mut(|s| {
-                    let dpki =
-                        DeepkeyBuiltin::new(self.clone(), self.keystore().clone(), installation);
-                    s.dpki = Some(Arc::new(dpki));
+                    s.dpki = dpki.into();
                 });
             }
             Ok(())
@@ -2167,7 +2179,7 @@ mod service_impls {
             // The initial agent key is the first derivation from the device seed.
             // Updated DPKI agent keys are sequential derivations from the same device seed.
             let agent = holo_hash::AgentPubKey::from_raw_32(seed_info.ed25519_pub_key.0.to_vec());
-            let cell_id = CellId::new(dna_hash, agent);
+            let cell_id = CellId::new(dna_hash.clone(), agent);
             let cell_id_clone = cell_id.clone();
 
             // Use app ID for role name as well, since this is pretty arbitrary
@@ -2183,7 +2195,7 @@ mod service_impls {
                 device_seed_lair_tag,
             };
             self.update_state(move |mut state| {
-                state.conductor_services.dpki = Some(installation);
+                state.conductor_services.dpki.insert(dna_hash, installation);
                 Ok(state)
             })
             .await?;
@@ -2570,13 +2582,14 @@ mod accessor_impls {
             &self.config
         }
 
-        /// Construct the DnaRuntime given the current setup
-        pub fn get_dna_compat(&self) -> DnaCompat {
+        /// Construct the DnaCompat given the current setup
+        pub fn get_dna_compat(&self, dna_hash: &DnaHash) -> DnaCompat {
             DnaCompat {
                 protocol_version: kitsune_p2p::KITSUNE_PROTOCOL_VERSION,
                 dpki_hash: self
                     .services()
                     .dpki
+                    .get(dna_hash)
                     .as_ref()
                     .map(|c| c.cell_id().dna_hash().clone().into()),
             }

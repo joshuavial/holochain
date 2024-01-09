@@ -6,7 +6,7 @@ use super::workflow::incoming_dht_ops_workflow::incoming_dht_ops_workflow;
 use super::workflow::sys_validation_workflow::SysValidationWorkspace;
 use crate::conductor::space::Space;
 use holochain_keystore::AgentPubKeyExt;
-use holochain_services::DpkiService;
+use holochain_services::DpkiCell;
 use holochain_services::KeyState;
 use holochain_types::prelude::*;
 use std::sync::Arc;
@@ -375,7 +375,7 @@ pub fn check_entry_visibility(op: &DhtOp) -> SysValidationResult<()> {
 /// Check that the agent was valid at the time of authoring according to the installed DPKI network
 pub async fn check_dpki_agent_validity(
     op: &DhtOp,
-    dpki: Arc<dyn DpkiService>,
+    dpki: Arc<dyn DpkiCell>,
 ) -> SysValidationResult<()> {
     let timestamp = op.action().timestamp();
     let author = op.action().author().clone();

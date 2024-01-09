@@ -35,6 +35,7 @@ use std::time::{Duration, Instant};
 use derive_more::Display;
 use futures::future::Either;
 use futures::{Future, Stream, StreamExt};
+use holochain_services::DpkiServiceError;
 use holochain_types::prelude::*;
 use tokio::sync::broadcast;
 
@@ -48,11 +49,12 @@ use app_validation_consumer::*;
 mod publish_dht_ops_consumer;
 use validation_receipt_consumer::*;
 mod validation_receipt_consumer;
+use crate::conductor::api::error::ConductorApiError;
 use crate::conductor::conductor::{RwShare, StopReceiver};
 use crate::conductor::manager::TaskManagerClient;
 use crate::conductor::space::Space;
-use crate::conductor::ConductorHandle;
 use crate::conductor::{error::ConductorError, manager::ManagedTaskResult};
+use crate::conductor::{CellError, CellResult, ConductorHandle};
 use holochain_p2p::HolochainP2pDna;
 use holochain_p2p::*;
 use publish_dht_ops_consumer::*;
@@ -79,7 +81,7 @@ pub async fn spawn_queue_consumer_tasks(
     network: HolochainP2pDna,
     space: &Space,
     conductor: ConductorHandle,
-) -> (QueueTriggers, InitialQueueTriggers) {
+) -> CellResult<(QueueTriggers, InitialQueueTriggers)> {
     let Space {
         authored_db,
         dht_db,
@@ -90,6 +92,9 @@ pub async fn spawn_queue_consumer_tasks(
 
     let keystore = conductor.keystore().clone();
     let dna_hash = Arc::new(cell_id.dna_hash().clone());
+    let dna_def = conductor.get_dna_def(&dna_hash).ok_or({
+        CellError::ConductorApiError(Box::new(ConductorApiError::DnaMissing((*dna_hash).clone())))
+    })?;
     let queue_consumer_map = conductor.get_queue_consumer_workflows();
 
     // Publish
@@ -152,6 +157,20 @@ pub async fn spawn_queue_consumer_tasks(
     let dna_def = conductor
         .get_dna_def(&dna_hash)
         .expect("Dna must be in store");
+    let dpki_hash = dna_def.compatibility.dpki_hash.clone().map(Into::into);
+
+    let dpki = if let Some(ref dpki_hash) = dpki_hash {
+        let dpki = conductor.services().dpki.get_dpki_cell(dpki_hash);
+        if dpki.is_none() {
+            return Err(CellError::ConductorError(Box::new(
+                ConductorError::DpkiError(DpkiServiceError::DpkiMissing(dpki_hash.clone())),
+            )));
+        } else {
+            dpki
+        }
+    } else {
+        None
+    };
 
     // Sys validation
     // One per space.
@@ -163,7 +182,7 @@ pub async fn spawn_queue_consumer_tasks(
                 dht_query_cache.clone(),
                 cache.clone(),
                 Arc::new(dna_def),
-                conductor.services().dpki.clone(),
+                dpki,
                 conductor
                     .get_config()
                     .conductor_tuning_params()
@@ -185,7 +204,7 @@ pub async fn spawn_queue_consumer_tasks(
         )
     });
 
-    (
+    Ok((
         QueueTriggers {
             sys_validation: tx_sys.clone(),
             publish_dht_ops: tx_publish.clone(),
@@ -193,7 +212,7 @@ pub async fn spawn_queue_consumer_tasks(
             integrate_dht_ops: tx_integration.clone(),
         },
         InitialQueueTriggers::new(tx_sys, tx_publish, tx_app, tx_integration, tx_receipt),
-    )
+    ))
 }
 
 #[derive(Clone)]

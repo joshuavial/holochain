@@ -36,7 +36,7 @@ pub mod ribosome_store;
 pub mod space;
 pub mod state;
 
-pub use cell::error::CellError;
+pub use cell::error::{CellError, CellResult};
 pub use cell::Cell;
 pub use conductor::Conductor;
 pub use conductor::ConductorBuilder;

@@ -69,8 +69,6 @@ pub enum CellError {
     ConductorApiError(#[from] Box<ConductorApiError>),
     #[error(transparent)]
     SerializedBytesError(#[from] holochain_serialized_bytes::SerializedBytesError),
-    #[error("Todo")]
-    Todo,
     #[error("The op: {0:?} is missing for this receipt")]
     OpMissingForReceipt(DhtOpHash),
     #[error(transparent)]

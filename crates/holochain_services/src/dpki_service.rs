@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use holochain_keystore::MetaLairClient;
 use holochain_types::prelude::*;
@@ -12,11 +12,24 @@ pub mod derivation_paths;
 /// and is used to distinguish the DPKI service from other apps.
 pub const DPKI_APP_ID: &str = "DPKI";
 
+#[derive(
+    Clone, Default, derive_more::Deref, derive_more::DerefMut, derive_more::From, derive_more::Into,
+)]
+pub struct DpkiService(HashMap<DnaHash, Arc<dyn DpkiCell>>);
+
+impl DpkiService {
+    /// Get the appropriate DPKI cell by its hash.
+    /// This hash is specified as a DnaCompat dependency in the DNA manifest.
+    pub fn get_dpki_cell(&self, dna_hash: &DnaHash) -> Option<Arc<dyn DpkiCell>> {
+        self.0.get(dna_hash).cloned()
+    }
+}
+
 /// Interface for the DPKI service
 #[async_trait::async_trait]
 #[mockall::automock]
 #[allow(clippy::needless_lifetimes)]
-pub trait DpkiService: Send + Sync {
+pub trait DpkiCell: Send + Sync + 'static {
     /// Check if the key is valid (properly created and not revoked) as-at the given Timestamp
     async fn key_state(
         &self,
@@ -63,13 +76,15 @@ pub enum DpkiServiceError {
     Serialization(#[from] SerializedBytesError),
     #[error("Error talking to lair keystore: {0}")]
     Lair(anyhow::Error),
+    #[error("A DPKI instance with hash {0} is expected to be installed, but isn't.")]
+    DpkiMissing(DnaHash),
 }
 /// Alias
 pub type DpkiServiceResult<T> = Result<T, DpkiServiceError>;
 
 /// Some more helpful methods built around the methods provided by the service
 #[async_trait::async_trait]
-pub trait DpkiServiceExt: DpkiService {
+pub trait DpkiServiceExt: DpkiCell {
     /// Register a newly created key with DPKI
     async fn register_key(&self, key: AgentPubKey) -> DpkiServiceResult<()> {
         self.key_mutation(None, Some(key)).await
@@ -90,7 +105,7 @@ pub trait DpkiServiceExt: DpkiService {
         self.key_mutation(Some(key), None).await
     }
 }
-impl<T> DpkiServiceExt for T where T: DpkiService + Sized {}
+impl<T> DpkiServiceExt for T where T: DpkiCell + Sized {}
 
 /// Data needed to initialize the DPKI service, if installed
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize, Debug, SerializedBytes)]
@@ -119,7 +134,7 @@ pub struct DeepkeyBuiltin {
 #[allow(unused_variables)]
 #[allow(clippy::needless_lifetimes)]
 #[async_trait::async_trait]
-impl DpkiService for DeepkeyBuiltin {
+impl DpkiCell for DeepkeyBuiltin {
     async fn key_state(
         &self,
         key: AgentPubKey,
@@ -164,11 +179,11 @@ impl DpkiService for DeepkeyBuiltin {
 
 /// Create a minimal usable mock of DPKI
 #[cfg(feature = "fuzzing")]
-pub fn mock_dpki() -> MockDpkiService {
+pub fn mock_dpki() -> MockDpkiCell {
     use arbitrary::Arbitrary;
     use futures::FutureExt;
 
-    let mut dpki = MockDpkiService::new();
+    let mut dpki = MockDpkiCell::new();
     let mut u = unstructured_noise();
     let action = SignedActionHashed::arbitrary(&mut u).unwrap();
     dpki.expect_key_state().returning(move |_, _| {

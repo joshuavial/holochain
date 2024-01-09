@@ -87,20 +87,16 @@ async fn test_packed_hash_consistency() {
 
 #[tokio::test]
 async fn test_integrity() {
-    let dna_compat = DnaCompat::fake();
-    let pack_dna = move |path| {
-        let dna_compat = dna_compat.clone();
-        async move {
-            let mut cmd = Command::cargo_bin("hc-dna").unwrap();
-            let cmd = cmd.args(["pack", path]);
-            cmd.assert().success();
-            let dna_path = PathBuf::from(format!("{}/integrity dna.dna", path));
-            let original_dna = read_dna(&dna_path).unwrap();
-            original_dna
-                .into_dna_file(DnaModifiersOpt::none(), dna_compat.clone())
-                .await
-                .unwrap()
-        }
+    let pack_dna = move |path| async move {
+        let mut cmd = Command::cargo_bin("hc-dna").unwrap();
+        let cmd = cmd.args(["pack", path]);
+        cmd.assert().success();
+        let dna_path = PathBuf::from(format!("{}/integrity dna.dna", path));
+        let original_dna = read_dna(&dna_path).unwrap();
+        original_dna
+            .into_dna_file(DnaModifiersOpt::none())
+            .await
+            .unwrap()
     };
     let (integrity_dna, integrity_dna_hash) = pack_dna("tests/fixtures/my-app/dnas/dna3").await;
     let (coordinator_dna, coordinator_dna_hash) = pack_dna("tests/fixtures/my-app/dnas/dna4").await;
@@ -172,7 +168,7 @@ async fn test_multi_integrity() {
         let dna_path = PathBuf::from(format!("{}/multi integrity dna.dna", path));
         let original_dna = read_dna(&dna_path).unwrap();
         original_dna
-            .into_dna_file(DnaModifiersOpt::none(), dna_compat_clone.clone())
+            .into_dna_file(DnaModifiersOpt::none())
             .await
             .unwrap()
     };

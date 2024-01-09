@@ -136,7 +136,7 @@ impl Cell {
                 &space,
                 conductor_handle.clone(),
             )
-            .await;
+            .await?;
 
             Ok((
                 Self {
